@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Pendulum</title>
+        <script src="bbrot/vector.js"></script>
+        <script src="bbrot/light.js"></script>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow: hidden; background:#112;}
+            canvas#vessel {
+            	width:100%; 
+            	height: 100%;
+            }
+            h1 {
+            	position: absolute;
+            	font: 800 3vw/3vw 'Fact Expanded';
+            	margin:0;
+            	left: 64px;
+            	top: 80%;
+            	width: 30vw;
+            	height: 100%;
+            	color: #fff;
+            }
+        </style>
+</head>
+<body>
+<canvas id="vessel" ></canvas>
+<script type="text/javascript">
+
+class Core {
+
+	constructor(canvas) {
+
+		this.canvas = canvas;
+		this.ratio = window.devicePixelRatio;
+		this.canvas.width = this.canvas.clientWidth * this.ratio;
+		this.canvas.height = this.canvas.clientHeight * this.ratio;
+		this.ctx = this.canvas.getContext('2d');
+		this.halfWidth = this.canvas.width * .5;
+		this.halfHeight = this.canvas.height * .5;
+
+		this.vCanvas = document.createElement('canvas');
+		this.vCanvas.width = this.canvas.width;
+		this.vCanvas.height = this.canvas.height;
+		this.vctx = this.vCanvas.getContext('2d');
+
+		this.camera = {
+			x: 400,
+			y: 400,
+			zoom: 1
+		}
+
+		this.time = {
+			tt: 0,
+			dt: 0,
+			lt: 0,
+			scale: .1
+		};
+
+		this.gravity = .005;
+		this.damping = .002;
+
+		this.colorspace = light('#f00','#0f0','#00f');//light('rgba(89,14,34,1)','rgba(12,3,68,1)','rgba(52,137,218,1)','rgba(255,255,255,1)','rgba(255,210,47,1)','rgba(174,67,13,1)');//light('rgba(58,15,110,1)','rgba(140,40,129,1)','rgba(221,73,104,1)','rgba(253,158,108,1)','rgba(251,251,190,1)');
+
+		this.pendulums = [
+			{
+				a: 0,//Math.PI - .01,
+				v: .1,
+				la: 0,
+				lv: .1,
+				g1: light('rgba(246,237,223,1)','rgba(249,157,80,1)','rgba(199,71,55,1)','rgba(103,42,73,1)','rgba(68,28,62,1)')
+			},
+			{
+				a: Math.PI - .01,
+				v: -.1,
+				la: Math.PI - .01,
+				lv: -.1,
+				g1: light('rgb(18,20,22)','rgb(32,64,96)','rgb(252,248,126)')
+			}
+		]
+
+		//TST
+		this.pendulums = [];
+
+		// this.spawn();
+		// setInterval(()=>{
+		// 	if (this.pendulums.length > 1) this.pendulums.shift();
+		// 	this.spawn();
+
+		// },20);
+
+		//END
+
+		this.penVisual = {
+			x: this.halfWidth,
+			y: this.halfHeight,
+			l: 100 * this.ratio,
+			r: 8 * this.ratio
+		}
+
+
+		this.run();
+		// setInterval(this.update.bind(this),5);
+
+	}
+
+	spawn(){
+		let a,v,c;
+		if (Math.random() > 1){
+			a = (Math.random()-.5)*.1 - .2;
+			v = (Math.random()-.5)*2 - 0;
+			c = light(this.colorspace(Math.sin(this.time.tt/1000)/2+.5 + Math.random()*.4 - .2))
+		} else {
+			a = (Math.random()-.5)*3 + 0;
+			v = (Math.random()-.5)*3 - 0;
+			c = light(this.colorspace(Math.cos(this.time.tt/1000)/2+.5 + Math.random()*.4 - .2))
+		}
+		
+		// this.pendulums.push({a: a, v: v, la: a, lv: v, g1: light(this.colorspace(((1.042 + Math.random()*.4 - .2) - Math.sqrt((a-.84)**2 + (v+.58)**2))))});
+		this.pendulums.push({a: a, v: v, la: a, lv: v, g1: c});
+	}
+
+	run() {
+
+		this.frameID = requestAnimationFrame(this.run.bind(this));
+		this.frame();
+
+	}
+
+	frame(){
+
+		this.ctx.fillStyle = '#112';
+		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+		
+		// this.update();
+		this.drawPlot();
+		// this.drawPendulum();
+
+	}
+
+	update(){
+		let now = window.performance.now();
+		this.time.dt = (now - this.time.lt) * this.time.scale;
+		this.time.tt += this.time.dt;
+		this.time.lt = now;
+
+		// for (let i = 0; i < this.pendulums.length; i++){
+
+		// 	let p = this.pendulums[i];
+
+		// 	let a = .9, b = -.6013, c = 2, d = .5;
+
+		// 	let x1 = p.a**2 - p.v**2 + a * p.a + b * p.v;
+		// 	let y1 = 2 * p.a * p.v + c * p.a + d * p.v;
+
+		// 	p.a = x1;
+		// 	p.v = y1;
+
+		// 	// p.a += dx/300;
+		// 	// p.v += dy/300;
+
+		// }
+
+	}
+
+	clampAngle(a){
+		if (a > Math.PI * 4){
+			a -= Math.PI * 8;
+		} else if (a < -Math.PI * 4){
+			a += Math.PI * 8;
+		}
+		return a;
+	}
+
+	updatePlot(){
+
+		// this.vctx.fillStyle = '#11112222';
+		// this.vctx.fillRect(0,0,this.vCanvas.width,this.vCanvas.height);
+
+		let ky = .5;
+		let kx = .5 * (this.vCanvas.height/this.vCanvas.width);
+		// let ky = 4;
+		// let kx = 4 * (this.vCanvas.height/this.vCanvas.width);
+		let dx = -.3;
+		let dy = 0;
+		let spread = 2;
+		this.vctx.globalCompositeOperation = 'screen';
+		this.vctx.globalAlpha = .03;
+
+		let iterate = (p,n,c)=>{
+			let trail = [];
+			let discard = false;
+			let zx = 0, zy = 0;
+
+			// let data = new Uint16Array(this.vCanvas.width*this.vCanvas.height*4);
+			// let layer = this.vctx.createImageData(this.vCanvas.width,this.vCanvas.height);
+			// let max = 0;
+
+			let putPixel = (x,y,rgb)=>{
+				let idx = (Math.floor(y)*this.vCanvas.width + Math.floor(x))*4;
+				data[idx]++;
+			}
+
+			for (let j = 0; j < n; j++){
+
+				let x1 = zx ** 2 - zy ** 2;
+				let y1 = 2 * zx * zy;
+
+		        zx = x1 + p.a; 
+		        zy = y1 + p.v;
+
+				let gx1 = this.canvas.width * kx * (zx-dx) + this.halfWidth;
+				let gy1 = this.canvas.height * (zy+dy) * ky + this.halfHeight;
+
+				trail.push([gx1,gy1,c]);
+
+				if (zx**2 + zy**2 > 8) {
+					discard = true;
+					break;//j = 4096;
+				}
+			}
+
+			if (discard){
+				for (let j = 0; j < trail.length; j++){
+					this.vctx.fillStyle = trail[j][2];
+					this.vctx.fillRect(trail[j][0],trail[j][1],1,1);
+				}
+			}
+		}
+
+		for (let i = 0; i < 10000; i++){
+			
+			let p = {a:(Math.random()-.5)*2*spread, v: (Math.random()-.5)*2*spread}//this.pendulums[i];
+
+			// this.vctx.globalAlpha = .03;
+			iterate(p,50,'#00f');
+			// this.vctx.globalAlpha = .03;
+			iterate(p,500,'#0f0');
+			// this.vctx.globalAlpha = .03;
+			iterate(p,5000,'#f00');
+
+			// let trail = [];
+			// let discard = false;
+			// let zx = 0, zy = 0;
+			// let it = 16000;
+
+
+
+			// for (let j = 0; j < it; j++){
+
+			// 	let color = j<it/50 ? '#f00' : j<it/5 ? '#fff' : '#00f';//this.colorspace(1-j/it,'hsv');
+
+			// 	let x1 = zx ** 2 - zy ** 2;
+			// 	let y1 = 2 * zx * zy;
+
+	  //           zx = x1 + p.a; 
+	  //           zy = y1 + p.v;
+
+			// 	let gx1 = this.canvas.width * kx * (zx-dx) + this.halfWidth;
+			// 	let gy1 = this.canvas.height * (zy+dy) * ky + this.halfHeight;
+
+			// 	trail.push([gx1,gy1,color]);
+
+			// 	if (zx**2 + zy**2 > 8) {
+			// 		discard = true;
+			// 		break;//j = 4096;
+			// 	}
+
+			// 	// this.vctx.beginPath();
+			// 	// this.vctx.moveTo(gx1,gy1);
+			// 	// this.vctx.lineTo(gx1,gy1);
+			// 	// this.vctx.stroke();
+			// }
+
+			// if (discard){
+			// 	for (let j = 0; j < trail.length; j++){
+			// 		this.vctx.fillStyle = trail[j][2];
+			// 		this.vctx.fillRect(trail[j][0],trail[j][1],1,1);
+			// 	}
+			// }
+
+			// p.a += dx/300;
+			// p.v += dy/300;
+
+		
+
+			// if (i===0) console.log(p.z);
+			
+
+			
+
+				
+				// this.vctx.lineCap = 'round';
+				
+
+		}
+
+	}
+
+	drawPlot(){
+		// this.vctx.fillStyle = '#3223ff';
+		// this.vctx.fillRect(20,20,this.vCanvas.width-40, this.vCanvas.height-40);
+		this.update();
+		this.updatePlot();
+		this.ctx.drawImage(this.vCanvas,0,0);
+
+	}
+
+}
+
+var core = new Core(document.getElementById('vessel'));
+
+
+</script>
+</body>
+</html>

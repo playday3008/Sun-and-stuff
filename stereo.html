@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Stereo</title>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px;}
+            canvas {
+            	width: 100%; 
+            	height: 100%
+            }
+        </style>
+</head>
+<body>
+<canvas class="canvas"></canvas>
+<img class="img" src="stereo/dmap2.png" />
+<script type="text/javascript">
+
+window.onload = function(){
+
+	let tm = window.performance.now();
+	
+	let c = document.querySelector('.canvas');
+	let img = document.querySelector('.img');
+
+	let w = c.width = 800;//img.width;
+	let h = c.height = 600;//img.height;
+
+	let ctx = c.getContext('2d');
+
+	ctx.drawImage(img,0,0, w, h);
+	let d = ctx.getImageData(0,0,w,h);
+
+
+	//Settings
+	let eyesep = 150;
+	let eyedst = 1200;
+	let zmult = eyedst/64;
+	// let sep = (z)=>{return (eyesep * z / (z + eyedst))};
+
+	//Cycle
+	let l = [], r = [];
+	for (let y = 0; y < h; y++){
+
+		for (let x = 0; x < w; x++){
+			l[x] = r[x] = x;
+		}
+
+		for (let x = 0; x < w*4; x+=4){
+
+			let z = (255 - d.data[y * w * 4 + x]) * 20;
+			let sep = eyesep * z / (z + eyedst);
+			let left = x/4 - Math.round(sep/2);
+			let right = left + Math.round(sep);
+			let obs = false;
+
+			if (left >= 0 && right < w) {
+				if (l[right] !== right){
+					if (l[right] < left){
+						r[l[right]] = l[right];
+      					l[right] = right;
+					} else {
+						obs = true;
+					}
+				}
+				if (r[left] !== left){
+					if (r[left] > right){
+						l[r[left]] = r[left];
+      					r[left] = left;
+					} else {
+						obs = true;
+					}
+				}
+
+				if (!obs) {
+					l[right] = left;
+					r[left] = right;
+				}
+
+
+				// l[right] = left;
+			}
+
+		}
+
+		for (let x = 0; x < w; x++){
+
+			if (l[x] === x){
+				d.data[y * w * 4 + x * 4] = Math.floor(Math.random() * 256);
+				d.data[y * w * 4 + x * 4 + 1] = Math.floor(Math.random() * 256);
+				d.data[y * w * 4 + x * 4 + 2] = Math.floor(Math.random() * 256);
+			} else {
+				d.data[y * w * 4 + x * 4] = d.data[y * w * 4 + l[x] * 4];
+				d.data[y * w * 4 + x * 4 + 1] = d.data[y * w * 4 + l[x] * 4 + 1];
+				d.data[y * w * 4 + x * 4 + 2] = d.data[y * w * 4 + l[x] * 4 + 2];
+			}
+
+		}
+
+	}
+
+	ctx.putImageData(d,0,0);
+
+	console.log('Rendered in ' + Math.round(window.performance.now() - tm) + 'ms');
+
+};
+
+</script>
+</body>
+</html>

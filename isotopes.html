@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Periodic table</title>
+        <script src="isotopes/assets/alive.js"></script>
+        <script src="isotopes/assets/elements.js"></script>
+        <script src="isotopes/assets/light2.js"></script>
+        <script src="isotopes/assets/chroma.js"></script>
+        <script src="isotopes/assets/nuke.js"></script>
+        <link href="isotopes/assets/latofonts.css" rel="stylesheet" type="text/css">
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; font-family: 'LatoWeb', sans-serif; min-height: 400px; min-width: 600px;}
+            body {background: rgb(14,14,26);}
+            svg {
+            	width: calc(100vw - 80px); 
+            	height: calc(100vh - 80px);
+            	margin: 40px 0 0 40px;
+            	
+            }
+            #service{
+            	display: block;
+            	position: absolute;
+            	left: 50px;
+            	bottom:0;
+            	font-size: 11px;
+            	color:rgba(255,255,255,.2);
+            	letter-spacing: .4px;
+            }
+            #service a {
+            	color: rgba(232,232,255,.2);
+            }
+            #service a:hover {
+            	color rgba(232,232,255,.4);
+            }
+            #titlediv{
+            	position: absolute;
+            	top:60px;
+            	left:120px;
+            	color: #fff;
+            	line-height: 18px;
+            }
+            #titlediv h1 {
+            	font-size: 30px;
+            	letter-spacing: .8px;
+            }
+            #titlediv p {
+            	font-size: 13px;
+            	width: 440px;
+            	letter-spacing: .3px;
+            }
+        </style>
+</head>
+<body>
+<h1 id="service">Карта всех изотопов, полученных экспериментальным путём. <a href="javascript:chart.switch('halflife')">Радиоактивность</a>, <a href="javascript:chart.switch('decay')">тип распада</a> и <a href="javascript:chart.switch('excess')">дефект массы</a>.</h1>
+<div id="titlediv">
+	<h1 id="title"></h1>
+	<p id="explain"></p>
+</div>
+<svg id="vessel">
+</svg>
+<script type="text/javascript">
+
+function Chart(svg) {
+	this.vessel = svg;
+	this.isotopes = [];
+	this.elements = [];
+	this.cells = [];
+	this.details;
+	this.mode = 'halflife';
+	this.cellSize;
+	this.axis = {};
+	this.labels = {};
+}
+Chart.prototype.init = function(){
+	this.isotopes = getNuked();
+	this.elements = getElements();
+
+	//Calculating cell size
+	this.calculateCellSize();
+
+	//Defining colors
+	//this.colorScheme = light([[233,237,246,1],[170,207,249,1],[101,125,199,1],[83,72,103,1],[62,38,78,1],[48,48,72,1],[103,48,43,1],[199,75,51,1],[249,157,80,1],[247,246,163,1],[255,255,248,1]]);
+	this.colorScheme = light([[18,20,22],[32,64,96],[252,248,126]]);
+
+	//Converting strings to numbers, creating links to parent
+	for (let i = 0; i < this.isotopes.length; i++) {
+		this.isotopes[i].parent = this;
+		this.isotopes[i].element = this.elements[this.isotopes[i].z - 1];
+		for (let key in this.isotopes[i]) {
+			if (!isNaN(+this.isotopes[i][key])) {
+				this.isotopes[i][key] = +this.isotopes[i][key];
+			}
+		}
+	};
+	this.isotopes[1].element = {name: 'Neutron', nameRu: 'Нейтрон'};
+
+	//Extracting headers
+	this.headers = this.isotopes.shift();
+
+	//Creating details & headers
+	this.details = document.createElementNS('http://www.w3.org/2000/svg','g');
+	this.details.setAttribute('transform', 'translate('+(this.vessel.clientWidth - this.cellSize * 100)+', '+(this.vessel.clientHeight - this.cellSize * 30)+')');
+	this.vessel.appendChild(this.details);
+
+	this.title = document.getElementById('title');
+	this.explain = document.getElementById('explain');
+
+	this.marks = document.createElementNS('http://www.w3.org/2000/svg','g');
+	this.vessel.appendChild(this.marks);
+
+}
+Chart.prototype.generate = function(){
+
+	//Drawing axis and labels
+	this.axis.v = document.createElementNS('http://www.w3.org/2000/svg','line');
+	this.axis.v.setAttribute('x1', 14);
+	this.axis.v.setAttribute('x2', 14);
+	this.axis.v.setAttribute('y1',this.vessel.clientHeight - this.cellSize - 14);
+	this.axis.v.setAttribute('y2',0);
+	this.axis.v.setAttribute('style','stroke: rgba(255,255,255,.2)');
+	this.vessel.appendChild(this.axis.v);
+
+	this.axis.h = document.createElementNS('http://www.w3.org/2000/svg','line');
+	this.axis.h.setAttribute('x1', 14 + this.cellSize);
+	this.axis.h.setAttribute('x2', this.cellSize * 200);
+	this.axis.h.setAttribute('y1', this.vessel.clientHeight - 14);
+	this.axis.h.setAttribute('y2', this.vessel.clientHeight - 14);
+	this.axis.h.setAttribute('style','stroke: rgba(255,255,255,.2)');
+	this.vessel.appendChild(this.axis.h);
+
+	this.labels.x = document.createElementNS('http://www.w3.org/2000/svg','text');
+	this.labels.x.setAttribute('fill','rgba(255,255,255,.3)');
+	this.labels.x.style.fontSize = '10px';
+	this.labels.x.style.letterSpacing = '.4px';
+	this.labels.x.style.fontStyle = 'italic';
+	this.labels.x.setAttribute('text-anchor', 'end');
+	this.labels.x.setAttribute('transform','translate('+(this.cellSize * 200)+','+(this.vessel.clientHeight - 3)+')');
+	this.labels.x.innerHTML = 'Число нейтронов';
+	this.vessel.appendChild(this.labels.x);
+
+	this.labels.y = document.createElementNS('http://www.w3.org/2000/svg','text');
+	this.labels.y.setAttribute('fill','rgba(255,255,255,.3)');
+	this.labels.y.style.fontSize = '10px';
+	this.labels.y.style.letterSpacing = '.4px';
+	this.labels.y.style.fontStyle = 'italic';
+	this.labels.y.setAttribute('text-anchor', 'end');
+	this.labels.y.setAttribute('transform','translate('+(this.cellSize + 6)+',0) rotate(-90)');
+	this.labels.y.innerHTML = 'Число протонов';
+	this.vessel.appendChild(this.labels.y);
+
+
+	// Drawing cells
+	for (let i = 0; i < this.isotopes.length; i++){
+		let gx, gy;
+		
+			gx = (this.isotopes[i].n + 1) * this.cellSize + 14;
+			gy = this.vessel.clientHeight - (this.isotopes[i].z + 2) * this.cellSize - 14;
+		
+
+		this.isotopes[i].g = document.createElementNS('http://www.w3.org/2000/svg','g');
+		this.isotopes[i].rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+		this.isotopes[i].rect.setAttribute('width', this.cellSize);
+		this.isotopes[i].rect.setAttribute('height', this.cellSize);
+		this.isotopes[i].g.setAttribute('transform', 'translate('+gx+','+gy+')');
+
+		/*
+		let colors = light('fire',[0, 3e32],'hcl',['log', 80]);
+		if (this.isotopes[i].halflife != 'STABLE'){
+			this.isotopes[i].rect.setAttribute('fill', colors(this.isotopes[i].hlseconds));
+		} else {
+			this.isotopes[i].rect.setAttribute('fill', 'rgb(34,34,56)');
+		}
+		*/
+		this.isotopes[i].g.appendChild(this.isotopes[i].rect);
+		this.isotopes[i].g.addEventListener('mouseover', function(){details(this.isotopes[i])}.bind(this));
+		this.isotopes[i].g.addEventListener('mouseout', function(){this.parent.details.innerHTML=''; this.parent.marks.innerHTML='';}.bind(this.isotopes[i]))
+		this.vessel.appendChild(this.isotopes[i].g);
+	}
+}
+Chart.prototype.calculateCellSize = function(){
+	this.cellSize = Math.min(Math.floor((this.vessel.clientHeight - 20) / 118), Math.floor((this.vessel.clientWidth - 20) / 177));
+}
+Chart.prototype.repaint = function(scheme,variable,domain,interpolation){
+	let colors = light(scheme,domain,'hcl',interpolation);
+	for (let i = 0; i < this.isotopes.length; i++){
+		if (this.mode != 'halflife'){
+			alive.animate(this.isotopes[i].rect, 'fill', colors(this.isotopes[i][variable]), 500);
+		} else if (this.mode === 'halflife'){
+			if (this.isotopes[i].halflife != 'STABLE'){
+				alive.animate(this.isotopes[i].rect, 'fill', colors(this.isotopes[i][variable]), 500);
+			} else {
+				alive.animate(this.isotopes[i].rect, 'fill', 'rgb(34, 34, 56)', 500);
+			}
+		} 
+	}
+}
+Chart.prototype.switch = function(mode){
+	if (mode === 'excess'){
+		this.mode = 'excess';
+		this.repaint('inferno','excess',[-92000, 200000],['log',5]);
+		this.title.innerHTML = 'Дефект массы';
+		this.explain.innerHTML = 'Иначе — избыток массы. Если взвесить ядро любого изотопа, а потом разобрать его на протоны и нейтроны, взвесить каждый и потом сложить, то получатся разные значения. Как если бы целое яблоко весило больше, чем две половины того же яблока (если дефект массы положительный), или половинки весили бы больше целого (если отрицательный).';
+	} else if (mode === 'halflife'){
+		this.mode = 'halflife';
+		this.repaint('fire','hlseconds',[0, 3e32],['log',80]);
+		this.title.innerHTML = 'Радиоактивность изотопов';
+		this.explain.innerHTML = 'У радиоактивных изотопов есть параметр «период полраспада» (λ). Он показывает насколько быстро кусок такого изотопа потеряет половину массы из-за радиоактивного распада. Чем меньше λ, тем быстрее изотоп теряет массу и активнее разбрасывает вокруг продукты своего распада и излучение.';
+	} else if (mode === 'decay'){
+		this.mode = 'decay';
+		for (let i = 0; i < this.isotopes.length; i++){
+			let paint;
+			if (this.isotopes[i].halflife === 'STABLE'){
+				paint = 'rgb(34, 34, 56)';
+			} else {
+				paint = this.isotopes[i].decay1 === 'A' ? 'rgb(255,223,160)' : this.isotopes[i].decay1 === 'B-' ? 'rgb(87,143,212)' : this.isotopes[i].decay1 === '2B-' ? 'rgb(62,118,187)' : this.isotopes[i].decay1 === '2B+' ? 'rgb(159,82,48)' : this.isotopes[i].decay1 === 'B+' ? 'rgb(204,105,62)' : this.isotopes[i].decay1 === 'EC' ? 'rgb(250,95,53)' : this.isotopes[i].decay1 === 'SF' ? 'rgb(255,253,244)' : this.isotopes[i].decay1 === 'IT' ? 'rgb(150,191,242)' : this.isotopes[i].decay1 === 'P' ? 'rgb(255,99,57)' : this.isotopes[i].decay1 === 'N' ? 'rgb(126,213,253)' : this.isotopes[i].decay1 === 'EC+B+' ? 'rgb(253,147,95)' : this.isotopes[i].decay1 === 'B-2N' ? 'rgb(49,57,227)' : this.isotopes[i].decay1 === 'B-N' ? 'rgb(67,97,134)' : this.isotopes[i].decay1 === 'ECP' ? 'rgb(222,78,50)' : this.isotopes[i].decay1 === '2P' ? 'rgb(229,38,56)' : this.isotopes[i].decay1 === '2N' ? 'rgb(142,240,209)' : this.isotopes[i].decay1 === 'ECSF' ? 'rgb(185,37,203)' : this.isotopes[i].decay1 === 'B+P' ? 'rgb(255,194,177)' : this.isotopes[i].decay1 === 'ECP+EC2P' ? 'rgb(255,132,161)' : 'rgb(0,0,0)';
+			}
+			alive.animate(this.isotopes[i].rect, 'fill', paint, 500);
+		}
+	this.title.innerHTML = 'Тип распада';
+	this.explain.innerHTML = 'Разные изотопы распадаются по-разному. Одни стреляют ядром гелия и превращаются в другой элемент, другие могут просто развалиться на части.';
+	}
+}
+
+function details(el){
+	el.parent.details.innerHTML = '';
+	el.parent.marks.innerHTML = '';
+	let symbol, a, z, rad, infoString, lambda, infoColor, xGuide, xLabel, yGuide, yLabel;
+
+	if (el.parent.mode === 'halflife'){
+		if (el.halflife === 'STABLE'){
+			infoString = 'Не радиоактивный';
+			infoColor = '#666';
+		} else if (el.hlseconds > 31536000000){
+			infoString = 'Слабо радиоактивный';
+			infoColor = '#996';
+		} else if (el.hlseconds > 31536000){
+			infoString = 'Радиоактивный';
+			infoColor = '#cc4';
+		} else if (el.hlseconds > 600){
+			infoString = 'Очень радиоактивный';
+			infoColor = '#fc4';
+		} else if (el.hlseconds > 60){
+			infoString = 'Смертельно радиоактивный';
+			infoColor = '#f62';
+		} else if (el.hlseconds > 1){
+			infoString = 'Запредельно радиоактивный';
+			infoColor = '#f20';
+		} else if (el.hlseconds >= 0){
+			infoString = 'Апокалиптически радиоактивный';
+			infoColor = '#f28';
+		}
+
+		if (el.halflife != 'STABLE'){
+			lambda = el.hlseconds > 31536000000000000000 ? ' λ > времени жизни вселенной' : el.hlseconds > 31536000000000000 ? ' λ = ' + Math.round(el.hlseconds / 31536000000000000) + ' млрд. лет' : el.hlseconds > 31536000000000 ? ' λ = ' + Math.round(el.hlseconds / 31536000000000) + ' млн. лет' : el.hlseconds > 31536000000 ? ' λ = ' + Math.round(el.hlseconds / 31536000000) + ' тыс. лет' : el.hlseconds > 31536000 ? ' λ = ' + Math.round(el.hlseconds / 315360)/100 + ' г' : el.hlseconds > 86400 ? ' λ = ' + Math.round(el.hlseconds / 86400) + ' дн.' : el.hlseconds > 3600 ? ' λ = ' + Math.round(el.hlseconds / 3600) + ' ч' : el.hlseconds > 60 ? ' λ = ' + Math.round(el.hlseconds / 60) + ' мин' : el.hlseconds > 1 ? ' λ = ' + Math.round(el.hlseconds / .01)/100 + ' сек' : el.hlseconds > .001 ? ' λ = ' + Math.round(el.hlseconds / .00001)/100 + ' мс' : el.hlseconds > .000001 ? ' λ = ' + Math.round(el.hlseconds / .00000001)/100 + ' мкс' : el.hlseconds > .000000001 ? ' λ = ' + Math.round(el.hlseconds / .00000000001)/100 + ' нс' : ' λ < наносекунды';
+			infoString += ',' + lambda;
+		}
+	} else if (el.parent.mode === 'excess'){
+		infoColor = '#fff';
+		infoString = el.excess === 0 ? 'Неизученный' : 'Избыток массы: ' + el.excess + ' кэВ';
+	} else if (el.parent.mode === 'decay'){
+		infoColor = '#fff';
+		if (el.halflife === 'STABLE'){
+			infoString = 'Стабилен';
+		} else {
+			infoString = el.decay1 === 'A' ? 'α-распад' : el.decay1 === 'B-' ? 'β-распад' : el.decay1 === '2B-' ? 'Двойной β-распад' : el.decay1 === '2B+' ? 'Двойной позитронный распад' : el.decay1 === 'B+' ? 'Позитронный распад' : el.decay1 === 'EC' ? 'Электронный захват' : el.decay1 === 'SF' ? 'Спонтанное деление' : el.decay1 === 'IT' ? 'Изомерный переход' : el.decay1 === 'P' ? 'Протонный распад' : el.decay1 === 'N' ? 'Нейтронный распад' : el.decay1 === 'EC+B+' ? 'Электронный захват с последующим позитронным распадом' : el.decay1 === 'B-2N' ? 'β-распад с последующим двойным нейтронным' :  el.decay1 === 'B-N' ? 'β-распад с последующим нейтронным' :  el.decay1 === 'ECP' ? 'Электронный захват с последующим протонным распадом' : el.decay1 === '2P' ? 'Двойной протонный распад' : el.decay1 === '2N' ? 'Двойной нейтронный распад' : el.decay1 === 'ECSF' ? 'Электронный захват с последующим спонтанным делением' : el.decay1 === 'B+P' ? 'Позитронный распад с последующим протонным' : el.decay1 === 'ECP+EC2P' ? 'Электронный захват, протонный распад, электронный захват и двойной протонный распад' : 'Неизученный распад';
+		}
+	}
+
+	symbol = document.createElementNS('http://www.w3.org/2000/svg','text');
+	symbol.setAttribute('fill','#fff');
+	symbol.style.fontSize = '60px';
+	symbol.setAttribute('dominant-baseline', 'mathematical');
+	//symbol.innerHTML = el.symbol;
+	symbol.innerHTML = el.element.nameRu;
+
+	a = document.createElementNS('http://www.w3.org/2000/svg','text');
+	a.setAttribute('fill','#fff');
+	a.style.fontSize = '18px';
+	a.setAttribute('text-anchor', 'end');
+	a.setAttribute('transform','translate(-8,0)');
+	a.innerHTML = el.z + el.n;
+
+	z = document.createElementNS('http://www.w3.org/2000/svg','text');
+	z.setAttribute('fill','#fff');
+	z.style.fontSize = '18px';
+	z.setAttribute('text-anchor', 'end');
+	z.setAttribute('transform','translate(-8,30)');
+	z.innerHTML = el.z;
+
+	rad = document.createElementNS('http://www.w3.org/2000/svg','text');
+	rad.setAttribute('fill', infoColor);
+	rad.style.fontSize = '12px';
+	rad.style.letterSpacing = '.4px';
+	rad.style.width = '100px';
+	rad.setAttribute('text-anchor', 'start');
+	rad.setAttribute('transform','translate(0,54)');
+	rad.innerHTML = infoString;
+
+	xLabel = document.createElementNS('http://www.w3.org/2000/svg','text');
+	xLabel.setAttribute('fill','rgba(255,255,255,1)');
+	xLabel.style.fontSize = '10px';
+	xLabel.style.letterSpacing = '.4px';
+	xLabel.setAttribute('text-anchor', 'middle');
+	xLabel.setAttribute('transform','translate('+((el.n + 1) * el.parent.cellSize + 14)+','+(el.parent.vessel.clientHeight - 3)+')');
+	xLabel.innerHTML = el.n;
+
+	yLabel = document.createElementNS('http://www.w3.org/2000/svg','text');
+	yLabel.setAttribute('fill','rgba(255,255,255,1)');
+	yLabel.style.fontSize = '10px';
+	yLabel.style.letterSpacing = '.4px';
+	yLabel.setAttribute('text-anchor', 'start');
+	yLabel.setAttribute('transform','translate('+(el.z < 20 ? 0 : 17)+','+(el.parent.vessel.clientHeight - ((el.z + 1) * el.parent.cellSize) - 14)+')');
+	yLabel.innerHTML = el.z;
+
+	el.parent.details.appendChild(symbol);
+	el.parent.details.appendChild(a);
+	el.parent.details.appendChild(z);
+	el.parent.details.appendChild(rad);
+	el.parent.marks.appendChild(xLabel);
+	el.parent.marks.appendChild(yLabel);
+
+	if (el.n > 10) {
+		xGuide = document.createElementNS('http://www.w3.org/2000/svg','line');
+		xGuide.setAttribute('x1', (el.n + 1.5) * el.parent.cellSize + 14);
+		xGuide.setAttribute('x2', (el.n + 1.5) * el.parent.cellSize + 14);
+		xGuide.setAttribute('y1', 0);
+		xGuide.setAttribute('y2', el.parent.vessel.clientHeight - el.parent.cellSize - 12);
+		xGuide.setAttribute('style','stroke: rgba(200,200,255,.1)');
+
+		el.parent.marks.appendChild(xGuide);
+	}
+
+	if (el.z > 10){
+		yGuide = document.createElementNS('http://www.w3.org/2000/svg','line');
+		yGuide.setAttribute('x1', 40);
+		yGuide.setAttribute('x2', el.parent.vessel.clientWidth);
+		yGuide.setAttribute('y1', el.parent.vessel.clientHeight - ((el.z + 1.5) * el.parent.cellSize) - 14);
+		yGuide.setAttribute('y2', el.parent.vessel.clientHeight - ((el.z + 1.5) * el.parent.cellSize) - 14);
+		yGuide.setAttribute('style','stroke: rgba(200,200,255,.1)');
+
+		el.parent.marks.appendChild(yGuide);
+	}
+}
+
+function download(filename, text) {
+  var element = document.createElement('a');
+  element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+  element.setAttribute('download', filename);
+
+  element.style.display = 'none';
+  document.body.appendChild(element);
+
+  element.click();
+
+  document.body.removeChild(element);
+}
+
+var chart = new Chart(document.getElementById('vessel'));
+chart.init();
+chart.generate();
+chart.switch('halflife');
+
+
+</script>
+</body>
+</html>

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Raymarching</title>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow-y: hidden; background: #000;}
+            .vessel {
+            	width: 100%;
+            	height: 100%;
+            }
+        </style>
+</head>
+<body>
+
+	<canvas class="vessel"></canvas>
+
+<script class="vsh" type="x-shader/x-fragment">
+	
+	attribute vec2 a_position;
+
+	void main(void){
+		gl_Position = vec4(a_position, 0.0, 1.0);
+	}
+
+</script>
+<script class="fsh" type="x-shader/x-fragment">
+
+	precision mediump float;
+	uniform float u_time;
+	uniform vec2 u_size;
+	uniform vec2 u_mouse;
+
+	const int MAX_STEPS = 256;
+	const float MIN_DST = 0.0;
+	const float MAX_DST = 100.0;
+	const float EPS = 0.0003;
+
+	mat3 rotate(vec3 v, float fAngle)
+	{	
+		vec4 q = vec4(normalize(v) * sin(fAngle), cos(fAngle));
+		vec4 qSq = q * q;
+		float xy2 = q.x * q.y * 2.0;
+		float xz2 = q.x * q.z * 2.0;
+		float yz2 = q.y * q.z * 2.0;
+		float wx2 = q.w * q.x * 2.0;
+		float wy2 = q.w * q.y * 2.0;
+		float wz2 = q.w * q.z * 2.0;
+	 
+		return mat3 (	
+	     qSq.w + qSq.x - qSq.y - qSq.z, xy2 - wz2, xz2 + wy2,
+	     xy2 + wz2, qSq.w - qSq.x + qSq.y - qSq.z, yz2 - wx2,
+	     xz2 - wy2, yz2 + wx2, qSq.w - qSq.x - qSq.y + qSq.z );
+	}
+
+	float sphere(vec3 p, float r){
+		return length(p) - r;
+	}
+
+	float plane(vec3 p, float lvl){
+
+		return p.y - lvl;
+
+	}
+	float julia(vec3 pos){
+	    
+		vec4 c = vec4(-0.2, -.6, 0.0, 0.0);
+	    vec4 z = vec4(pos, 0.0);
+		vec4 nz;
+	    
+		float dr2 = 1.0;
+		float r2 = dot(z,z);
+
+		for(int i=0;i<9;i++)
+		{
+			dr2 *= 4.0*r2;
+		    nz.x = z.x * z.x - dot(z.yzw, z.yzw);
+			nz.yzw = 2.0*z.x*z.yzw;
+			z = nz + c;
+
+			r2 = dot(z,z);
+			if(r2>4.0)
+	        {
+				break;
+	        }
+		}
+
+		return 0.25*sqrt(r2/dr2)*log(r2);
+	}
+
+	float cube(vec3 p, float d){
+
+		d /= 2.0;
+		return max(max(max(p.x-d, -p.x-d), max(p.y-d, -p.y-d)),max(p.z-d, -p.z-d));
+
+	}
+
+	vec2 sdf(vec3 p){
+
+		float r = dot(p,p);
+		float maxr = 10.0;
+		float scale = 2.0;
+		float n = 0.0;
+		float t = 1e10;
+
+		float rk = sin(u_time / 5.) / 2.6;
+		vec3 c = vec3(1.0, 1.0, 1.0);
+
+		for(int i = 0; i < 10; i++){
+
+			if (r > maxr) break;
+	    	p = abs(p);
+
+	    	//if(p.x - p.y < 0.0) p.xy = p.yx;
+      		//if(p.x - p.z < 0.0) p.xz = p.zx;
+      		//if(p.y - p.z < 0.0) p.yz = p.zy;
+
+	    	p *= rotate(vec3(1.0, 0.4, 1.0), rk);
+
+	    	p = p * scale - c * (scale - 1.0);
+
+	    	r = dot(p,p);
+	    	n += 1.0;
+	    	t = min(t, length(p) - 1.0);
+		}
+
+		float f = (sqrt(r) - 2.0) * pow(scale, -n);
+		return vec2(f,t);	
+
+	}
+
+	vec3 trace(vec3 o, vec3 d){
+
+		float depth = MIN_DST;
+		float closest = 0.0;
+
+		for (int i = 0; i < MAX_STEPS; i++){
+
+			vec2 sdf_res = sdf(o + depth * d);
+			float dst = sdf_res.x;
+			closest = float(i);
+
+			if (dst < EPS){
+				return vec3(depth, 1.0 - closest / float(MAX_STEPS), sdf_res.y);
+			}
+			depth += dst;
+			if (depth > MAX_DST){
+				return vec3(MAX_DST, 1.0 - closest / float(MAX_STEPS), sdf_res.y);
+			}
+
+		}
+		return vec3(MAX_DST, closest/float(MAX_STEPS), 0.0);
+
+	}
+
+	mat3 getCamera(vec3 o, vec3 t, float a){
+
+		vec3 w = normalize(t - o);
+		vec3 p = vec3(sin(a), cos(a), 0.0);
+		vec3 u = normalize(cross(w, p));
+		vec3 v = cross(u, w);
+		return mat3(u, v, w);
+
+	}
+
+	vec3 getNormal(vec3 p){
+		vec3 eps = vec3(EPS,0.0,0.0);
+		return normalize( vec3(
+	           sdf(p+eps.xyy).x - sdf(p-eps.xyy).x,
+	           sdf(p+eps.yxy).x - sdf(p-eps.yxy).x,
+	           sdf(p+eps.yyx).x - sdf(p-eps.yyx).x ) );
+	}
+
+	float getShadow(vec3 light, vec3 os){
+
+		float ldist = EPS * 100.;
+		vec3 d = normalize(light - os);
+
+		for (int i = 0; i < MAX_STEPS; i++){
+
+			float dst = sdf(os + ldist * d).x;
+			if (dst < EPS){
+				return 0.0;
+			}
+			ldist += dst;
+			if (dst > MAX_DST){
+				return 1.0;
+			}
+
+		}
+		return 0.0;
+		
+	}
+
+	float getSoftShadow(vec3 os, vec3 light, float s )
+	{	
+		float maxt = 100.;
+	    float f = 1.0;
+	    float ph = 1e10;
+	    vec3 d = normalize(light - os);
+	    float v = EPS * 100.;
+
+	    for(int i = 0; i < MAX_STEPS; i++){
+
+	        float h = sdf(os + d * v).x;
+	        if(h < EPS) return 0.0;
+	        float y = h*h/(2.0*ph);
+	        float sq = sqrt(h*h-y*y);
+	        f = min(f, s*sq/max(0.0,v-y));
+	        ph = h;
+	        v += h;
+	        if (v > MAX_DST) break;
+
+	    }
+	    return f;
+	}
+
+	vec3 render(vec3 o, vec3 d){
+
+		vec3 background = vec3(0.0,0.0,0.1);
+		vec3 final = background * 0.5;
+
+		vec3 traced = trace(o, d);
+		if (traced.x >= MAX_DST){
+			return background;
+		}
+		vec3 os = o + traced.x * d;
+		vec3 normal = getNormal(os);
+
+		float tx = clamp(pow(traced.z+0.9, 6.0), 0.0, 1.0);
+		//vec3 scolor = mix(vec3(0.9, 0.8, 0.6),vec3(tx, 1.0 - tx * 0.5, 1.0 - tx),0.8);
+		vec3 glowcolor = mix(vec3(0.,1.,1.), vec3(1.0, 0.0, 0.4), sin(u_time / 5.)/2.0+0.5);
+		vec3 scolor = mix(vec3(0.8, 1.0, 0.1), glowcolor, tx);
+
+		vec3 reflex = vec3(1.0, 0.0, 0.0);
+
+		vec3 l = vec3(30.,100.,200.);//vec3(20.0 * sin(u_time/20.), 10., 20.0 * cos(u_time/20.));//vec3(1.,10.,6.);
+		vec3 ld = normalize(l-os);
+		vec3 lcolor = vec3(1.0,1.0,1.0);
+		float spec = 0.0;//pow(dot(reflect(d, normal), ld), 4.0) / 3.0;
+		float lambert = dot(normal, ld);
+		float shadow = 1.0;//clamp(getShadow(l, os), 0.2, 1.0);
+
+		//vec3 l2 = vec3(0., 0., -3.);
+		//vec3 ld2 = normalize(l2-os);
+		//vec3 lcolor2 = vec3(0.2, 0.0, 1.0);
+		//float spec1 = pow(dot(reflect(d, normal), ld2), 4.0) / 3.0;
+		//float lambert1 = dot(normal, ld2);
+		//float shadow1 = clamp(getShadow(l2, os), 0.1, 1.0);
+
+		float ao = pow(traced.y, 16.);
+		float d_nrm = 1.0;//abs(dot(d, normal));
+		float fresnel = 0.0;//pow(1.0 - d_nrm, 4.0) * 0.8;
+		float hk = clamp((traced.x - 2.4) / 3.0, 0.0, 1.0);
+
+
+		//final += mix(mix(ao * lambert * shadow * (lcolor * scolor + spec*2.0) + ao * lambert1 * shadow1 * (lcolor2 * scolor + spec1), background, fresnel), background, hk);
+		
+		//final += mix(mix(ao * lambert * shadow * (lcolor * scolor + spec*2.0), background, fresnel), background * 0.5, hk);
+		final += mix(ao * lambert * shadow * lcolor * scolor, background * 0.5, hk);
+
+		final += glowcolor * 0.8 * smoothstep(0.9, 1.0, tx) * pow(sin(u_time - length(os)), 64.0);
+
+		return final;
+
+	}
+
+	void main(void){
+
+		float distance = 3.2 + 0.5 * cos(u_time / 13.7);
+
+		vec3 o = vec3(cos(u_mouse.x * 6.28)*distance, 1., sin(u_mouse.x * 6.28)*distance);
+		//vec3 o = vec3(-sin(u_time/12.0)*distance, 2.0 * cos(u_time / 5.0), -cos(u_time/12.0)*distance);
+		//vec3 o = vec3(3. * cos(u_time / 22.), 0., 0.);
+		vec3 target = vec3(0.0, 0.0, 0.0);
+		//vec3 target = vec3(sin(u_time/10.), cos(u_time/10.), sin(u_time/21.));
+		mat3 cam = getCamera(o, target, 0.0);
+		vec2 p = (-u_size.xy + 2.0 * gl_FragCoord.xy) / u_size.y;
+		vec3 d = cam * normalize(vec3(p.xy, 2.0));
+
+		vec3 color = render(o, d);
+
+		gl_FragColor = vec4(color, 1.0);
+		
+	}
+
+</script>
+
+<script type="text/javascript">
+
+	//Warehouse
+	// vec4(0.9765625, 0.34375, 0.34375, 1.0)
+
+	let ratio = window.devicePixelRatio || 1;
+	let canvas = document.querySelector('.vessel');
+	canvas.width = canvas.clientWidth * ratio;
+	canvas.height = canvas.clientHeight * ratio;
+	let gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+	//Geometry
+	let vertices = [-1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0];
+	let vbuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, vbuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+	// gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+	//Vertex Shader
+	let vshader = gl.createShader(gl.VERTEX_SHADER);
+	gl.shaderSource(vshader, document.querySelector('.vsh').textContent);
+	gl.compileShader(vshader);
+
+	//Fragment Shader
+	let fshader = gl.createShader(gl.FRAGMENT_SHADER);
+	gl.shaderSource(fshader, document.querySelector('.fsh').textContent);
+	gl.compileShader(fshader);
+	if (!gl.getShaderParameter(fshader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(fshader));
+
+	//Program
+	let program = gl.createProgram();
+	gl.attachShader(program, vshader);
+	gl.attachShader(program, fshader);
+	gl.linkProgram(program);
+	gl.useProgram(program);
+
+	//Geometry to program
+	let xy = gl.getAttribLocation(program, 'a_position');
+	gl.vertexAttribPointer(xy, 2, gl.FLOAT, false, 0, 0);
+	gl.enableVertexAttribArray(xy);
+
+	//Size
+	let size = gl.getUniformLocation(program, 'u_size');
+	gl.uniform2fv(size, [canvas.width, canvas.height]);
+
+	//Time
+	let time = gl.getUniformLocation(program, 'u_time');
+
+	//Mouse tracking
+	let u_mouse = gl.getUniformLocation(program, 'u_mouse');
+	let mouse = [0,0];
+
+	window.addEventListener('mousemove', (e)=>{
+		mouse = [e.clientX * ratio / canvas.width, (canvas.height - e.clientY * ratio) / canvas.height];
+	});
+	window.addEventListener('touchmove', (e)=>{
+		e.preventDefault();
+		mouse = [e.touches[0].clientX * ratio, canvas.height - e.touches[0].clientY * ratio];
+	});
+
+	//Render
+	function render(){
+		requestAnimationFrame(render);
+		// gl.clearColor(0.265625, 0.17578125, 0.94921875, 1);
+		// gl.clear(gl.COLOR_BUFFER_BIT);
+
+		gl.uniform1f(time, window.performance.now() / 1000);
+		gl.uniform2fv(u_mouse, mouse);
+
+		gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+	}
+	render();
+	
+</script>
+</body>
+</html>

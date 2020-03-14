@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Voronoi & Delaunay</title>
+        <script src="https://sunandstuff.com/voronoi/vector.js"></script>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow-y: hidden;}
+            canvas#vessel {
+            	width:100%; 
+            	height: 100%
+            }
+            .overlay {
+            	position: absolute;
+            	top: 20px;
+            	right: 20px;
+            }
+            .overlay p {
+            	color: #fff;
+            	font: 12px 'Verdana';
+            	margin: 0 20px 0 0;
+            }
+        </style>
+</head>
+<body>
+<canvas id="vessel"></canvas>
+<div class="overlay">
+	<p><input type="radio" name="Shit" checked onclick="javascript:core.renderDalaunay=false; core.renderVoronoi=true"/> Вороной</p>
+	<p><input type="radio" name="Shit" onclick="javascript:core.renderDalaunay=true; core.renderVoronoi=false"/> Делоне</p>
+</div>
+<script type="text/javascript">
+
+let core;
+
+class Core {
+
+	constructor(canvas){
+
+		this.canvas = canvas;
+		this.ratio = window.devicePixelRatio;
+		this.canvas.width = this.w = this.canvas.clientWidth * this.ratio;
+		this.canvas.height = this.h = this.canvas.clientHeight * this.ratio;
+		this.ctx = this.canvas.getContext('2d');
+
+		this.time = {
+			tt: 0,
+			dt: 0,
+			lt: 0,
+			scale: 1,
+			frameId : false
+		};
+
+		this.renderDalaunay = false;
+		this.renderVoronoi = true;
+
+		this.sites = this.generateSites(128);
+		this.delaunay = getD(this.sites, {x1:0,x2:this.w,y1:0,y2:this.h});
+		this.canvas.addEventListener('click',(e)=>{
+			this.sites.push({x: e.clientX * this.ratio, y: e.clientY * this.ratio, xv: Math.random()*2 - 1, yv: Math.random()*2 - 1})
+		});
+
+		this.cycle();
+
+	}
+
+	cycle() {
+
+		this.time.frameId = requestAnimationFrame(this.cycle.bind(this));
+		let now = window.performance.now();
+		this.time.dt = (now - this.time.lt) * this.time.scale;
+		this.time.tt += this.time.dt;
+		this.time.lt = now;
+		this.frame();
+
+	}
+
+	frame() {
+		this.ctx.fillStyle = '#224';
+		this.ctx.fillRect(0, 0, this.w, this.h);
+
+		this.updateSites();
+		this.renderD();
+		this.renderStats();
+		this.renderSites();
+
+	}
+
+	generateSites(n){
+
+		let sites = [];
+		for (let i = 0; i < n; i++){
+			sites.push({x: Math.random()*this.w, y: Math.random()*this.h, xv: Math.random()*2 - 1, yv: Math.random()*2 - 1});
+		}
+		return sites;
+
+	}
+
+	updateSites(){
+
+		for (let i in this.sites){
+
+			let s = this.sites[i];
+
+			s.x += s.xv;
+			s.y += s.yv;
+
+			if (s.x < 0) {s.x = 0; s.xv *= -1}
+			if (s.x > this.canvas.width) {s.x = this.canvas.width; s.xv *= -1}
+			if (s.y < 0) {s.y = 0; s.yv *= -1}
+			if (s.y > this.canvas.height) {s.y = this.canvas.height; s.yv *= -1}
+
+		}
+
+		this.delaunay = getD(this.sites, {x1:0,x2:this.w,y1:0,y2:this.h});
+		this.calculationTime = this.delaunay.ctime;
+
+	}
+
+	renderSites(){
+
+		for (let i in this.sites){
+
+			this.ctx.save();
+			this.ctx.fillStyle = '#1128';
+			// this.ctx.translate(this.sites[i].x,this.sites[i].y);
+			this.ctx.beginPath();
+			this.ctx.arc(this.sites[i].x,this.sites[i].y,3,0,Math.PI*2);
+			this.ctx.closePath();
+			this.ctx.fill();
+			this.ctx.restore();
+
+		}
+
+	}
+
+	renderD(){
+
+		this.ctx.strokeStyle = '#f008';
+		let total = Object.keys(this.delaunay.mesh).length;
+		let counter = 0;
+
+		for (let i in this.delaunay.mesh){
+
+			let t = this.delaunay.mesh[i];
+			let v = Math.floor(counter/total*256);
+
+			this.ctx.fillStyle = this.ctx.strokeStyle = 'rgba('+v+','+(255-v)+',156,1)';
+			this.ctx.lineWidth = this.ratio;
+
+			if (this.renderDalaunay){
+				this.ctx.beginPath();
+				this.ctx.moveTo(t.a.x,t.a.y);
+				this.ctx.lineTo(t.b.x,t.b.y);
+				this.ctx.lineTo(t.c.x,t.c.y);
+				this.ctx.closePath();
+				this.ctx.stroke();
+				this.ctx.fill();
+			}
+
+			this.ctx.beginPath();
+			// this.ctx.arc(t.circle.x,t.circle.y, t.circle.r, 0, Math.PI * 2);
+			// this.ctx.fillText(counter, t.circle.x-10, t.circle.y+10);
+			// this.ctx.arc(t.circle.x,t.circle.y, 4, 0, Math.PI * 2);
+			// this.ctx.closePath();
+			// this.ctx.stroke();
+			// this.ctx.fill();
+
+			if (this.renderVoronoi){
+				if (t.ab){
+					this.ctx.beginPath();
+					this.ctx.moveTo(t.circle.x, t.circle.y);
+					this.ctx.lineTo(t.ab.triangle.circle.x,t.ab.triangle.circle.y)
+					this.ctx.stroke();
+					t.ab.triangle[t.ab.type] = false;
+				}
+				if (t.ac){
+					this.ctx.beginPath();
+					this.ctx.moveTo(t.circle.x, t.circle.y);
+					this.ctx.lineTo(t.ac.triangle.circle.x,t.ac.triangle.circle.y)
+					this.ctx.stroke();
+					t.ac.triangle[t.ac.type] = false;
+				}
+				if (t.bc){
+					this.ctx.beginPath();
+					this.ctx.moveTo(t.circle.x, t.circle.y);
+					this.ctx.lineTo(t.bc.triangle.circle.x,t.bc.triangle.circle.y)
+					this.ctx.stroke();
+					t.bc.triangle[t.bc.type] = false;
+				}
+			}
+
+			counter++;
+
+		}
+
+	}
+
+	renderStats(){
+
+		this.ctx.fillStyle = '#fff';
+		this.ctx.font = '20px Verdana';
+		this.ctx.fillText('Calculated '+this.sites.length+' points in '+Math.round(this.calculationTime*100)/100 + ' ms',100,100);
+
+	}
+
+}
+
+function getD(sites,bnd){
+
+	let ctime = window.performance.now();
+
+	sites.sort((a,b)=>a.y-b.y);
+
+	let isInside = function(point,triangle){
+
+		d = (point.x - triangle.circle.x)**2 + (point.y - triangle.circle.y)**2 - triangle.circle.r**2;
+
+		return d < 0;
+
+	}
+
+	let applyCircumcircle = function(triangle){
+		let a = triangle.a;
+		let b = triangle.b;
+		let c = triangle.c;
+		let y,x,r;
+		y = ((a.x - b.x)*(b.x**2 - c.x**2 + b.y**2 - c.y**2) - (b.x-c.x)*(a.x**2 - b.x**2 + a.y**2 - b.y**2))/(2*((b.y - c.y)*(a.x - b.x) - (a.y - b.y)*(b.x - c.x)));
+		x = ((a.y - b.y)*(a.y + b.y - 2*y))/(2*(a.x - b.x)) + (a.x + b.x)/2;
+		r = Math.sqrt((c.x - x)**2 + (c.y - y)**2);
+
+		triangle.circle = {x: x, y: y, r: r};
+	}
+
+	let areSame = function(e1, e2){
+		return (((e1.a.x === e2.a.x && e1.a.y === e2.a.y) && (e1.b.x === e2.b.x && e1.b.y === e2.b.y)) || ((e1.a.x === e2.b.x && e1.a.y === e2.b.y) && (e1.b.x === e2.a.x && e1.b.y === e2.a.y)));
+	}
+
+	let makeChain = function(p){
+		let unchained = p.slice();
+		let chain = [unchained.pop()];
+		while (unchained.length > 0){
+
+			for (let i = 0; i < unchained.length; i++){
+				if (chain[chain.length-1].b.x === unchained[i].a.x && chain[chain.length-1].b.y === unchained[i].a.y) {
+					chain.push(unchained.splice(i,1)[0]);
+					break;
+				} else if (chain[chain.length-1].b.x === unchained[i].b.x && chain[chain.length-1].b.y === unchained[i].b.y) {
+					let flip = unchained.splice(i,1)[0];
+					chain.push({a: flip.b, b: flip.a});
+					break;
+				}
+
+			}
+
+		}
+		return chain;
+	}
+
+	let applyBond = function(t1, t2){
+
+		let vertices = [{v: t1.a, n: 0}, {v: t1.b, n: 1}, {v: t1.c, n: 3}, {v: t2.a, n: 0}, {v: t2.b, n: 1}, {v: t2.c, n: 3}];
+		let shared = [];
+		vertices.sort((a,b)=>a.v.x - b.v.x);
+		for (let i = 1; i < vertices.length; i++){
+			if (vertices[i].v.x === vertices[i-1].v.x && vertices[i].v.y === vertices[i-1].v.y){
+
+			}
+		}
+
+	}
+
+	let id = 0;
+	let tri = {};
+	let bndw = bnd.x1 + (bnd.x2 - bnd.x1);
+	let bndh = bnd.y1 + (bnd.y2 - bnd.y1);
+	let supertri = {a:{x: bnd.x1 - 4 * bndw, y: bnd.y1 + 4 * bndh},b:{x: bnd.x1 + bndw / 2, y: bnd.y1 - 4 * bndh}, c:{x: bnd.x2 + 4 * bndw, y: bnd.y1 + 4 * bndh}, ab: false, ac: false, bc: false, id: undefined};
+	applyCircumcircle(supertri);
+	supertri.id = id;
+	tri[id++] = supertri;
+
+	for (let s in sites){
+
+		let bad = [];
+		let poly = [];
+
+		for (let t in tri){
+			if (isInside(sites[s], tri[t])){ bad.push(tri[t]) };
+		}
+
+		for (let b = 0; b < bad.length; b++){
+
+			let e1 = {a: bad[b].a, b: bad[b].b, solo: true, bond: bad[b].ab};
+			let e2 = {a: bad[b].b, b: bad[b].c, solo: true, bond: bad[b].bc};
+			let e3 = {a: bad[b].c, b: bad[b].a, solo: true, bond: bad[b].ac};
+
+			for (let bb = 0; bb < bad.length; bb++){
+
+				if (b !== bb){
+
+					let ee = [{a: bad[bb].a, b: bad[bb].b}, {a: bad[bb].b, b: bad[bb].c}, {a: bad[bb].c, b: bad[bb].a}];
+
+					for (let j = 0; j < 3; j++){
+
+						if (e1.solo && areSame(e1, ee[j])) {
+							e1.solo = false;
+							break;
+						}
+						if (e2.solo && areSame(e2, ee[j])) {
+							e2.solo = false;
+							break;
+						}
+						if (e3.solo && areSame(e3, ee[j])) {
+							e3.solo = false;
+							break;
+						}
+					}
+				}
+			}
+
+			if (e1.solo) poly.push(e1);
+			if (e2.solo) poly.push(e2);
+			if (e3.solo) poly.push(e3);
+
+		}
+
+		for (let b in bad){
+			delete tri[bad[b].id];
+		}
+
+		// Constructing new triangles with the new point
+		poly = makeChain(poly);
+		let zeroid = id;
+		for (let p = 0; p < poly.length; p++){
+
+			let newTri = {a:{x: poly[p].a.x, y: poly[p].a.y}, b:{x: poly[p].b.x, y: poly[p].b.y}, c:{x: sites[s].x, y: sites[s].y}, id: undefined};
+			applyCircumcircle(newTri);
+			newTri.id = id;
+			tri[id] = newTri;
+			if (p > 0){
+				tri[id-1].bc = {triangle: tri[id], type: 'ac'};
+				tri[id].ac = {triangle: tri[id-1], type: 'bc'};
+			}
+			tri[id].ab = poly[p].bond;
+			if (poly[p].bond){
+				poly[p].bond.triangle[poly[p].bond.type].triangle = tri[id];
+				poly[p].bond.triangle[poly[p].bond.type].type = 'ab';
+			}
+
+			id++;
+
+		}
+		tri[zeroid].ac = {triangle: tri[id-1], type:'bc'};
+		tri[id-1].bc = {triangle: tri[zeroid], type: 'ac'};
+
+	}
+
+	let deathIds = [];
+	for (let t in tri){
+		for (let c = 0; c < 3; c++){
+			let vert = c===0 ? 'a' : c===1 ? 'b' : 'c';
+			if ((supertri.a.x === tri[t][vert].x && supertri.a.y === tri[t][vert].y) || (supertri.b.x === tri[t][vert].x && supertri.b.y === tri[t][vert].y) || (supertri.c.x === tri[t][vert].x && supertri.c.y === tri[t][vert].y)) {
+				deathIds.push(t);
+			}
+		}
+	}
+
+	for (let d in deathIds){delete tri[deathIds[d]]};
+
+	ctime = window.performance.now() - ctime;
+
+	return {mesh: tri, ctime: ctime};
+
+}
+
+// function getV(sites,bnd){
+
+// 	let getR = function(a,b,c){
+// 		let k1 = (b.y - a.y) / (b.x - a.x);
+// 		let k2 = (c.y - b.y) / (c.x - b.x);
+// 		let k3 = ((k1 * k2 * (c.y - a.y) + k1 * (b.x + c.x) - k2 * (a.x + b.x)) / (2 * (k1 - k2)));
+// 		let k4 = ((-1 / k1) * (k3 - (a.x + b.x) / 2) + (a.y + b.y) / 2);
+// 		let r = Math.sqrt((k3 - a.x) * (k3 - a.x) + (k4 - a.y) * (k4 - a.y));
+// 		return {r: r, x: k3, y: k4};
+// 	}
+
+// 	let nextPlease = function(o){
+
+// 		let keys = Object.keys(o);
+// 		let min = Infinity;
+// 		for (let k in keys) if (+keys[k] < min) min = +keys[k];
+
+// 		let final = o[min];
+// 		delete o[min];
+// 		return final;
+
+// 	}
+
+// 	let plantCircle = function(q,a,y){
+
+// 		if (a.prev && a.next){
+
+// 			let c, cy;
+
+// 			c = getR(a.prev, a, a.next);
+// 			cy = c.y + c.r;
+
+// 			if (cy > y && q[cy] === undefined){
+// 				q[cy] = {type: 1, x: c.x, y: c.y, r: c.r, center: a, left: a.prev, right: a.next};
+// 				a.arci[1] = a.next.arci[2] = a.prev.arci[0] = cy;
+// 			}
+
+// 		}
+
+// 	}
+
+// 	let tstOut = [];
+// 	let q = {};
+// 	let l = {};
+// 	for (let i = 0; i < sites.length; i++){q[sites[i].y] = {type: false, x: sites[i].x, y: sites[i].y}};
+
+// 	while (Object.keys(q).length > 0){
+
+// 		let e = nextPlease(q);
+
+// 		if (!e.type){
+
+// 			if (Object.keys(l).length > 0){
+
+// 				let min = Infinity;
+// 				let index = false;
+
+// 				for (let i in l){
+// 					let d = Math.sqrt(((e.x - l[i].x)**2 + (e.y - l[i].y)**2)/2);
+// 					if (d<min){
+// 						min = d;
+// 						index = i;
+// 					}
+// 				}
+
+// 				let old = l[index];
+// 				delete l[index];
+// 				delete q[old.arci[0]];
+// 				delete q[old.arci[1]];
+// 				delete q[old.arci[2]];
+// 				let fresh = {x: e.x, y: e.y, next: false, prev: false, i: old.i, arci:[]};
+// 				let next = {x: old.x, y: old.y, next: old.next, prev: fresh, i:undefined, arci: []};
+// 				fresh.next = next;
+// 				let prev = {x: old.x, y: old.y, next: fresh, prev: old.prev,i:undefined, arci: []};
+// 				fresh.prev = prev;
+
+// 				if (fresh.next) {
+// 					let ni = next.next ? old.i + (next.next.i - old.i)/2 : 256;
+// 					next.i = ni;
+// 					l[ni] = next;
+// 				}
+// 				l[old.i] = fresh;
+// 				if (fresh.prev) {
+// 					let pi = prev.prev ? old.i + (prev.prev.i - old.i)/2 : -256;
+// 					prev.i = pi;
+// 					l[pi] = prev;
+// 				}
+
+
+// 				// Circle events
+
+// 				plantCircle(q,prev,e.y);
+// 				plantCircle(q,next,e.y);
+
+
+// 			} else {
+
+// 				l[0] = {x: e.x, y: e.y, next: false, prev: false, i:0, arci:[]};
+
+// 			}
+
+// 		} else {
+
+// 			let vanish = l[e.center.i];
+
+// 			if (vanish){
+// 				delete l[e.center.i];
+
+// 				if (vanish.prev) vanish.prev.next = vanish.next ? vanish.next : false;
+// 				if (vanish.next) vanish.next.prev = vanish.prev ? vanish.prev : false;
+
+// 				delete q[vanish.arci[0]];
+// 				delete q[vanish.arci[1]];
+// 				delete q[vanish.arci[2]];
+
+// 				plantCircle(q,vanish.prev,e.y);
+// 				plantCircle(q,vanish.next,e.y);
+// 			}
+
+
+// 			tstOut.push({x: e.x, y: e.y, r: e.r});
+
+
+// 		}
+
+// 	}
+
+// 	return tstOut;
+
+// }
+
+
+
+window.onload = function(){
+	core = new Core(document.getElementById('vessel'));
+};
+
+</script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Pendulum</title>
+        <script src="lorenz/vector.js"></script>
+        <script src="lorenz/light.js"></script>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow: hidden;}
+            canvas#vessel {
+            	width:100%; 
+            	height: 100%;
+            }
+            h1 {
+            	position: absolute;
+            	font: 800 3vw/3vw 'Fact Expanded';
+            	margin:0;
+            	left: 64px;
+            	top: 96px;
+            	width: 30vw;
+            	height: 100%;
+            	color: #fff;
+            }
+        </style>
+</head>
+<body>
+<canvas id="vessel" ></canvas>
+<h1>Странный аттрактор Лоренца</h1>
+<script type="text/javascript">
+
+class Core {
+
+	constructor(canvas) {
+
+		this.canvas = canvas;
+		this.ratio = window.devicePixelRatio;
+		this.canvas.width = this.canvas.clientWidth * this.ratio;
+		this.canvas.height = this.canvas.clientHeight * this.ratio;
+		this.ctx = this.canvas.getContext('2d');
+		this.halfWidth = this.canvas.width * .5;
+		this.halfHeight = this.canvas.height * .5;
+
+		this.vCanvas = document.createElement('canvas');
+		this.vCanvas.width = this.canvas.width;
+		this.vCanvas.height = this.canvas.height;
+		this.vctx = this.vCanvas.getContext('2d');
+
+		this.h1 = document.querySelector('h1');
+
+		this.camera = {
+			x: 400,
+			y: 400,
+			zoom: 1
+		}
+
+		this.time = {
+			tt: 0,
+			dt: 0,
+			lt: 0,
+			scale: 1,
+			fps: 0,
+			multiply: 2
+		};
+
+		this.colorspace = light('rgba(246,237,223,1)','rgba(249,157,80,1)','rgba(199,71,55,1)','rgba(103,42,73,1)','rgba(68,28,62,1)');
+		this.pathCount = 64;
+
+		//TST
+		this.processes = [];
+
+		for (let i = 0 ; i < this.pathCount; i++){
+			this.spawn(light(this.colorspace((i/this.pathCount))));
+		}
+		//END
+
+
+		this.run();
+		// setInterval(this.update.bind(this),10);
+
+	}
+
+	spawn(color){
+		let x = (Math.random()-.5)*.1;
+		let y = (Math.random()-.5)*.1;
+		let z = 15.62388; //Math.random()*30;
+		this.processes.push({x: x, y: y, z: z, trace: [{x:x,y:y,z:z}], c: color});
+	}
+
+	run() {
+
+		this.frameID = requestAnimationFrame(this.run.bind(this));
+		this.frame();
+
+	}
+
+	frame(){
+
+		this.ctx.fillStyle = '#112';
+		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+		
+		this.drawPlot();
+
+	}
+
+	update(){
+		let now = window.performance.now();
+		this.time.fps = (this.time.fps + (1000 / (now - this.time.lt))) / 2;
+		this.time.dt = (now - this.time.lt) * this.time.scale;
+		this.time.tt += this.time.dt;
+		this.time.lt = now;
+
+		for (let i = 0; i < this.processes.length; i++){
+
+			let p = this.processes[i];
+
+			for (let t = 0; t < this.time.multiply; t++){
+
+				let x = p.x, y = p.y, z = p.z, x1, y1, z1;
+				let dt = 0.005;
+				let a = 5, b = 15, c = 1;
+
+				x1 = x + a*(-x+y)*dt;
+	            y1 = y + (b*x-y-z*x)*dt;
+	            z1 = z + (-c*z+x*y)*dt;
+
+	            p.trace.push({x:p.x,y:p.y,z:p.z});
+	            if (p.trace.length > 512) p.trace.shift();
+
+	            p.x = x1; p.y = y1; p.z = z1;
+
+            }
+
+		}
+
+	}
+
+	coord(x,y,z){
+
+		let kx = .03;
+		let ky = .03;
+		let kz = .03;
+		let dx = 0;
+		let dy = 0;
+		let dz = 15;
+
+		let tt = this.time.tt/8000;
+
+		// return {
+		// 	x: this.canvas.width * kx * (x - dx) + this.halfWidth, 
+		// 	y: this.canvas.height * y * ky + this.halfHeight, 
+		// 	z: z}
+		return {
+			x: this.canvas.width * kx * ((x - dx) * Math.cos(tt)) + this.canvas.width * kz *(z - dz) * Math.sin(tt) + this.halfWidth, 
+			y: this.canvas.height * y * ky + this.halfHeight, 
+			z: Math.cos(tt)}
+	}
+
+	updatePlot(){
+
+		this.vctx.globalCompositeOperation = 'normal';
+		this.vctx.fillStyle = '#111122';
+		this.vctx.fillRect(0,0,this.vCanvas.width,this.vCanvas.height);
+
+		// this.vctx.lineCap = 'round';
+		this.vctx.globalCompositeOperation = 'screen';
+
+		for (let i = 0; i < this.processes.length; i++){
+
+			let p = this.processes[i];
+			this.vctx.strokeStyle = p.c();
+
+			this.vctx.lineWidth = 1;//this.ratio*2;
+				
+			if (p.trace[0] && p.trace[1]){
+				this.vctx.save();
+				this.vctx.beginPath();
+				let c0 = this.coord(p.trace[0].x,p.trace[0].y,p.trace[0].z);
+				this.vctx.moveTo(c0.x, c0.y);
+				for (let j = 1; j < p.trace.length; j++){
+
+					let c1 = this.coord(p.trace[j].x, p.trace[j].y, p.trace[j].z);
+					this.vctx.lineTo(c1.x, c1.y);
+
+					
+					
+				}
+				// this.vctx.lineWidth = 1;
+				this.vctx.stroke();
+				this.vctx.restore();
+			}
+
+		}
+
+		let ex = this.processes[0].trace[0];
+		// console.log(this.coord(ex.x, ex.y, ex.z));
+
+	}
+
+	drawPlot(){
+		this.update();
+		this.updatePlot();
+		this.ctx.drawImage(this.vCanvas,0,0);
+		// this.h1.innerHTML = Math.floor(this.time.fps) + ' fps';
+	}
+
+}
+
+var core = new Core(document.getElementById('vessel'));
+
+
+</script>
+</body>
+</html>

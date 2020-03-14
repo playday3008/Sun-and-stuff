@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Pendulum</title>
+        <script src="pendulum/vector.js"></script>
+        <script src="pendulum/light.js"></script>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow: hidden;}
+            canvas#vessel {
+            	width:100%; 
+            	height: 100%;
+            }
+            h1 {
+            	position: absolute;
+            	display: flex;
+            	align-items: center;
+            	justify-content: center;
+            	font: 800 12vw/12vw 'TT Norms';
+            	margin:0;
+            	left: 0;
+            	top: 0;
+            	width: 100%;
+            	height: 100%;
+            	color: #112;
+            	text-align: center;
+            }
+        </style>
+</head>
+<body>
+<canvas id="vessel" ></canvas>
+<!-- <h1>Глаз<br>циклона</h1> -->
+<script type="text/javascript">
+
+class Core {
+
+	constructor(canvas) {
+
+		this.canvas = canvas;
+		this.ratio = window.devicePixelRatio;
+		this.canvas.width = this.canvas.clientWidth * this.ratio;
+		this.canvas.height = this.canvas.clientHeight * this.ratio;
+		this.ctx = this.canvas.getContext('2d');
+		this.halfWidth = this.canvas.width * .5;
+		this.halfHeight = this.canvas.height * .5;
+
+		this.vCanvas = document.createElement('canvas');
+		this.vCanvas.width = this.canvas.width;
+		this.vCanvas.height = this.canvas.height;
+		this.vctx = this.vCanvas.getContext('2d');
+
+		this.camera = {
+			x: 400,
+			y: 400,
+			zoom: 1
+		}
+
+		this.time = {
+			tt: 0,
+			dt: 0,
+			lt: 0,
+			scale: .1
+		};
+
+		this.gravity = .005;
+		this.damping = .005;
+
+		this.colorspace = light('rgba(246,237,223,1)','rgba(249,157,80,1)','rgba(199,71,55,1)','rgba(103,42,73,1)','rgba(68,28,62,1)');
+
+		this.pendulums = [
+			{
+				a: 0,//Math.PI - .01,
+				v: .1,
+				la: 0,
+				lv: .1,
+				g1: light('rgba(246,237,223,1)','rgba(249,157,80,1)','rgba(199,71,55,1)','rgba(103,42,73,1)','rgba(68,28,62,1)')
+			},
+			{
+				a: Math.PI - .01,
+				v: -.1,
+				la: Math.PI - .01,
+				lv: -.1,
+				g1: light('rgb(18,20,22)','rgb(32,64,96)','rgb(252,248,126)')
+			}
+		]
+
+		//TST
+		this.pendulums = [];
+		// for (let i = 0; i < 32; i++){
+		// 	let a = i/4;
+		// 	let v = Math.random() - .5;//i/50-.32;
+		// 	this.pendulums.push({a: a, v: v, la: a, lv: v, g1: light('rgb(255,0,'+Math.floor(Math.random()*256)+')')});
+		// }
+		setInterval(()=>{
+			if (this.pendulums.length > 64) this.pendulums.shift();
+			let a = (Math.random()-.5)*Math.PI*4;
+			let v = (Math.random()-.5) / 2;
+			this.pendulums.push({a: a, v: v, la: a, lv: v, g1: light(this.colorspace(Math.sin(this.time.tt)/2+.5))});
+
+		},100);
+		//END
+
+		this.penVisual = {
+			x: this.halfWidth,
+			y: this.halfHeight,
+			l: 100 * this.ratio,
+			r: 8 * this.ratio
+		}
+
+
+		this.run();
+		setInterval(this.update.bind(this),5);
+
+	}
+
+	run() {
+
+		this.frameID = requestAnimationFrame(this.run.bind(this));
+		this.frame();
+
+	}
+
+	frame(){
+
+		this.ctx.fillStyle = '#112';
+		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+		
+		// this.update();
+		this.drawPlot();
+		// this.drawPendulum();
+
+	}
+
+	update(){
+		let now = window.performance.now();
+		this.time.dt = (now - this.time.lt) * this.time.scale;
+		this.time.tt += this.time.dt;
+		this.time.lt = now;
+
+		for (let i = 0; i < this.pendulums.length; i++){
+
+			let p = this.pendulums[i];
+			p.v += (this.gravity) * -Math.sin(p.a) * 1 * this.time.scale;
+			p.v *= 1 - this.damping;
+			p.a += p.v;
+			if (p.a > Math.PI * 4){
+				p.a -= Math.PI * 8;
+			} else if (p.a < -Math.PI * 4){
+				p.a += Math.PI * 8;
+			}
+
+		}
+
+	}
+
+	updatePlot(){
+
+		// this.vctx.fillStyle = '#11112206';
+		// this.vctx.fillRect(0,0,this.vCanvas.width,this.vCanvas.height);
+
+		let ky = 3.4;
+		let kx = .05;
+		let sx = 1+kx, s2x = 1+kx*2;
+
+		for (let i = 0; i < this.pendulums.length; i++){
+
+			let p = this.pendulums[i];
+
+			let x0 = this.canvas.width*sx - this.canvas.width*s2x * (p.la / Math.PI / 8 + .5);
+			let x1 = this.canvas.width*sx - this.canvas.width*s2x * (p.a / Math.PI / 8 + .5);
+			let y0 = this.canvas.height * p.lv * ky + this.halfHeight;
+			let y1 = this.canvas.height * p.v * ky + this.halfHeight;
+
+			if (Math.abs(p.la - p.a) < Math.PI){
+
+				// this.vctx.strokeStyle = '#3223ff';
+				this.vctx.strokeStyle = p.g1(Math.sin(this.time.tt/500)/2 + .5);//this.penVisual.g1(Math.abs(this.pendulum.v*16));
+				this.vctx.lineWidth = this.ratio*2;
+				this.vctx.beginPath();
+				this.vctx.moveTo(x0,y0);
+				this.vctx.lineTo(x1,y1);
+				this.vctx.stroke();
+
+			}
+
+			p.la = p.a;
+			p.lv = p.v;
+
+		}
+
+	}
+
+	drawPlot(){
+		// this.vctx.fillStyle = '#3223ff';
+		// this.vctx.fillRect(20,20,this.vCanvas.width-40, this.vCanvas.height-40);
+		this.updatePlot();
+		this.ctx.drawImage(this.vCanvas,0,0);
+
+	}
+
+	drawPendulum(){
+
+		this.ctx.save();
+		this.ctx.translate(this.penVisual.x,this.penVisual.y);
+		this.ctx.rotate(this.pendulum.a);
+
+		this.ctx.strokeStyle = '#fff';
+		this.ctx.lineWidth = 2;
+		this.ctx.beginPath();
+		this.ctx.moveTo(0,0);
+		this.ctx.lineTo(0,this.penVisual.l);
+		this.ctx.stroke();
+
+		this.ctx.fillStyle = '#fade76';
+		this.ctx.beginPath();
+		this.ctx.arc(0,this.penVisual.l, this.penVisual.r, 0, Math.PI * 2);
+		this.ctx.closePath();
+		this.ctx.fill();
+
+		this.ctx.restore();
+
+	}
+
+}
+
+var core = new Core(document.getElementById('vessel'));
+
+
+</script>
+</body>
+</html>

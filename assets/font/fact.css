@@ -1,0 +1,39 @@
+
+@font-face {
+	font-family: 'Fact';
+	src: url('Fact_Expanded Extra Bold.eot');
+	src:
+	     url('Fact_Expanded Extra Bold.eot@') format('embedded-opentype'),
+	     url('Fact_Expanded Extra Bold.woff2') format('woff2'),
+	     url('Fact_Expanded Extra Bold.woff') format('woff'),
+	     url('Fact_Expanded Extra Bold.ttf') format('truetype'),
+	     url('https://sunandstuff.com/assets/font/Fact_Expanded%20Extra%20Bold.svg') format('svg');
+	font-weight: 600;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: 'Fact';
+	src: url('Fact_Medium.eot');
+	src:
+	     url('Fact_Medium.eot@') format('embedded-opentype'),
+	     url('Fact_Medium.woff2') format('woff2'),
+	     url('Fact_Medium.woff') format('woff'),
+	     url('Fact_Medium.ttf') format('truetype'),
+	     url('Fact_Medium.svg') format('svg');
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: 'Fact';
+	src: url('Fact_Regular.eot');
+	src:
+	     url('Fact_Regular.eot@') format('embedded-opentype'),
+	     url('Fact_Regular.woff2') format('woff2'),
+	     url('Fact_Regular.woff') format('woff'),
+	     url('Fact_Regular.ttf') format('truetype'),
+	     url('Fact_Regular.svg') format('svg');
+	font-weight: normal;
+	font-style: normal;
+}

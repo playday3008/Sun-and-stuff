@@ -1,0 +1,48 @@
+
+@font-face {
+	font-family: 'Fact';
+	src: url('Fact_Regular.eot');
+	src:
+	     url('Fact_Regular.eot@') format('embedded-opentype'),
+	     url('Fact_Regular.woff2') format('woff2'),
+	     url('Fact_Regular.woff') format('woff'),
+	     url('Fact_Regular.ttf') format('truetype');
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: 'Fact';
+	src: url('Fact_Medium.eot');
+	src:
+	     url('Fact_Medium.eot@') format('embedded-opentype'),
+	     url('Fact_Medium.woff2') format('woff2'),
+	     url('Fact_Medium.woff') format('woff'),
+	     url('Fact_Medium.ttf') format('truetype');
+	font-weight: 500;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: 'Fact';
+	src: url('Fact_Bold.eot');
+	src:
+	     url('Fact_Bold.eot@') format('embedded-opentype'),
+	     url('Fact_Bold.woff2') format('woff2'),
+	     url('Fact_Bold.woff') format('woff'),
+	     url('Fact_Bold.ttf') format('truetype');
+	font-weight: 600;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: 'Fact';
+	src: url('Fact_Extra Bold.eot');
+	src:
+	     url('Fact_Extra Bold.eot@') format('embedded-opentype'),
+	     url('Fact_Extra Bold.woff2') format('woff2'),
+	     url('Fact_Extra Bold.woff') format('woff'),
+	     url('Fact_Extra Bold.ttf') format('truetype');
+	font-weight: 800;
+	font-style: normal;
+}

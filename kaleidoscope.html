@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Kaleidoscope</title>
+        <!-- <script src="light2.js"></script> -->
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow-y: hidden;}
+            canvas#vessel {
+            	width:100%; 
+            	height: 100%
+            }
+            .switch {
+            	position: absolute;
+            	top: 0;
+            	left: 0;
+            }
+        </style>
+</head>
+<body>
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript" >
+    (function (d, w, c) {
+        (w[c] = w[c] || []).push(function() {
+            try {
+                w.yaCounter24216865 = new Ya.Metrika2({
+                    id:24216865,
+                    clickmap:true,
+                    trackLinks:true,
+                    accurateTrackBounce:true,
+                    webvisor:true
+                });
+            } catch(e) { }
+        });
+
+        var n = d.getElementsByTagName("script")[0],
+            s = d.createElement("script"),
+            f = function () { n.parentNode.insertBefore(s, n); };
+        s.type = "text/javascript";
+        s.async = true;
+        s.src = "https://mc.yandex.ru/metrika/tag.js";
+
+        if (w.opera == "[object Opera]") {
+            d.addEventListener("DOMContentLoaded", f, false);
+        } else { f(); }
+    })(document, window, "yandex_metrika_callbacks2");
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/24216865" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->
+<canvas id="vessel"></canvas>
+<script type="text/javascript">
+
+var core;
+class Core {
+	constructor(canvas) {
+		this.canvas = canvas;
+		this.ratio = window.devicePixelRatio;
+		this.camera = {
+			x: 3000,
+			y: 1630,
+			zoom: 1
+		}
+		this.timeScale = 1;
+
+		this.time = {
+			tt: 0,
+			dt: 0,
+			lt: 0
+		};
+
+		this.canvas.width = this.canvas.clientWidth * this.ratio;
+		this.canvas.height = this.canvas.clientHeight * this.ratio;
+		this.ctx = this.canvas.getContext('2d');
+
+		this.vcanvas = document.createElement('canvas');
+		this.vcanvas.width = this.canvas.clientWidth * this.ratio;
+		this.vcanvas.height = this.canvas.clientHeight * this.ratio;
+		this.vctx = this.vcanvas.getContext('2d');
+		this.bigSide = Math.max(this.canvas.width, this.canvas.height);
+
+		window.onresize = function(){
+			this.updateCanvas();
+		}.bind(this);
+
+		this.isReady = false;
+
+		this.mode = 0;
+		this.angle = 0;
+		this.sources = [
+			{src: 'img1.jpg'},
+			{src: 'img2.png'},
+			{src: 'img3.jpg'},
+			{src: 'img4.jpg'},
+			{src: 'img5.jpg'},
+			{src: 'img6.jpg'},
+			{src: 'img7.png'},
+			{src: 'img8.jpg'},
+			{src: 'img9.jpg'},
+			{src: 'img10.jpg'},
+			{src: 'img11.png'}
+		];
+		// this.sources = [
+		// 	{name: 'Julia', src: 'fb/001.jpg'},
+		// 	{name: 'Jasper', src: 'fb/002.jpg'},
+		// 	{name: 'Monolith', src: 'fb/003.jpg'},
+		// 	{name: 'Koimbra', src: 'fb/004.jpg'}
+		// ];
+
+		this.sourceCount = this.sources.length;
+		this.sourceLoaded = 0;
+		for (let i = 0; i < this.sourceCount; i++){
+			this.sources[i].img = new Image();
+			this.sources[i].img.src = this.sources[i].src;
+			this.sources[i].img.onload = function(){
+				this.sourceLoaded++;
+				if (this.sourceLoaded === this.sourceCount){
+					this.setupSequence();
+				}
+			}.bind(this);
+		}
+		this.shards = 24;
+		this.shards = this.shards < 6 ? 6 : this.shards > 120 ? 120 : this.shards;
+		this.dx = this.canvas.height * Math.tan(Math.PI * 2 / this.shards);
+		console.log('Initialized...');
+	}
+	updateCanvas(){
+		this.canvas.width = this.canvas.clientWidth * this.ratio;
+		this.canvas.height = this.canvas.clientHeight * this.ratio;
+		this.vcanvas.width = this.canvas.clientWidth * this.ratio;
+		this.vcanvas.height = this.canvas.clientHeight * this.ratio;
+		this.bigSide = Math.max(this.canvas.width, this.canvas.height);
+		this.dx = this.canvas.height * Math.tan(Math.PI * 2 / this.shards);
+	}
+	setupSequence(){
+		this.ctx.fillStyle = 'rgb(0,0,0)';
+		this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+		this.currentImage = -1;
+		this.angle = 270;
+		this.image = new Image();
+		this.image2 = this.getNextImage();
+		this.isReady = true;
+		this.loadFrame();
+		// this.image.src = this.sources[this.currentImage].src;
+		// this.image2 = new Image();
+		// this.image2.src = this.getNextImage();
+	}
+	getNextImage(){
+		this.currentImage++;
+		if (this.sources[this.currentImage]){
+			return this.sources[this.currentImage].img;
+		} else {
+			this.currentImage = 0;
+			return this.sources[0].img;
+		}
+	}
+	run() {
+		this.frameID = requestAnimationFrame(this.run.bind(this));
+		let now = window.performance.now();
+		this.time.dt = (now - this.time.lt) * this.timeScale;
+		this.time.tt += this.time.dt;
+		this.time.lt = now;
+		if (this.isReady) {this.frame();} else {this.loadFrame(Math.round(this.sourceLoaded / this.sourceCount * 100))}
+	}
+	loadFrame(percent){
+		this.ctx.save();
+		this.ctx.fillStyle = 'rgb(0,0,0)';
+		this.ctx.fillRect(0,0,this.canvas.width, this.canvas.height);
+		this.ctx.fillStyle = 'rgb(255,255,2555)';
+		this.ctx.font = '36px Arial';
+		this.ctx.textAlign = 'center';
+		this.ctx.textBaseline = 'middle';
+		this.ctx.translate(Math.round(this.canvas.width / 2 + (Math.random() - .5) * 5), Math.round(this.canvas.height / 2 + (Math.random() - .5) * 5))
+		this.ctx.rotate((Math.random() - .5)*.08);
+		if (percent != undefined){
+			this.ctx.fillText('SIT AND WAIT! ' + percent + '%', 0, 0);
+		} else {
+			this.ctx.fillText('HERE WE GO...', 0, 0);
+		}
+		this.ctx.restore();
+	}
+	frame(){
+		this.ctx.fillStyle = 'rgba(0,0,0,.01)';
+		this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+		this.vDraw();
+		this.ctx.save();
+		// this.ctx.drawImage(this.vcanvas,0,0);
+		for (let i = 0; i < this.shards; i++){
+			let isEven = i % 2 === 0;
+			let angleMult = isEven ? i + 1 : i;
+			this.ctx.save();
+			this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+			this.ctx.rotate(Math.PI * 2 / this.shards * angleMult);
+			if (isEven) this.ctx.scale(-1,1);
+			this.ctx.drawImage(this.vcanvas, -this.canvas.width / 2, -this.canvas.height, this.canvas.width, this.canvas.height);
+			this.ctx.restore();
+		}
+		this.ctx.restore();
+
+		this.angle +=.2;
+		if (this.angle > 360) this.angle %= 360;
+
+		if (this.angle % 360 > 180){
+			this.mode = 1;
+		} else {
+			if (this.mode === 1){
+				this.image = this.image2;
+				this.image2 = this.getNextImage();
+			}
+			this.mode = 0;
+		}
+	}
+	vDraw(){
+		this.vctx.save();
+		this.vctx.beginPath();
+		this.vctx.moveTo(this.vcanvas.width / 2, this.vcanvas.height);
+		this.vctx.lineTo(this.vcanvas.width / 2, 0);
+		this.vctx.lineTo(this.vcanvas.width / 2 + this.dx, 0);
+		this.vctx.closePath();
+		this.vctx.clip();
+		this.vctx.save();
+		this.vctx.translate(this.vcanvas.width / 2, this.vcanvas.height / 2);
+		this.vctx.rotate(this.angle / 360 * Math.PI * 2);
+		this.vctx.drawImage(this.image, -this.vcanvas.width / 2, -this.vcanvas.height / 2, this.vcanvas.width, this.vcanvas.height);
+		this.vctx.restore();
+		if (this.mode === 1) {
+			let f = (this.angle - 180) / 180;
+			// this.vctx.globalAlpha = f;
+			let ft = f * Math.PI;
+			let tf = (1 - Math.cos(ft)) * .5;
+			//return  a*(1-f) + b*f;
+			
+			this.vctx.save();
+			this.vctx.scale(tf,tf);
+			this.vctx.translate(this.vcanvas.width / 2, this.vcanvas.height * (-1 * (1 - tf) + .5 * tf)); 
+			// this.vctx.translate(this.vcanvas.width / 2, this.vcanvas.height * (1.5 * (1 - tf) + .5 * tf));
+			this.vctx.rotate(this.angle / 360 * Math.PI * 2);
+			this.vctx.drawImage(this.image2, -this.vcanvas.width / 2, -this.vcanvas.height / 2, this.vcanvas.width, this.vcanvas.height);
+			this.vctx.restore();
+		}
+		this.vctx.restore();
+	}
+}
+window.onload = function(){
+	core = new Core(document.getElementById('vessel'));
+	core.run();
+};
+
+</script>
+</body>
+</html>

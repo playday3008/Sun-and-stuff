@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+
+<html>
+
+	<head>
+
+		<meta charset="utf-8" />
+		<title>
+			Сколько хуемени?
+		</title>
+		<link rel="stylesheet" href="huelock/lato/Lato/latofonts.css" type="text/css" charset="utf-8" />
+		<style type="text/css">
+			body, html {
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				padding: 0;
+				overflow: hidden;
+				/*background: #161419;*/
+			}
+			svg {
+				width: 100%;
+				height: 100%;
+			}
+			svg text.fire .flicker {
+				opacity: .1;
+			}
+		</style>
+
+	</head>
+
+	<body>
+
+		<!-- Yandex.Metrika counter -->
+      <script type="text/javascript" >
+          (function (d, w, c) {
+              (w[c] = w[c] || []).push(function() {
+                  try {
+                      w.yaCounter24216865 = new Ya.Metrika2({
+                          id:24216865,
+                          clickmap:true,
+                          trackLinks:true,
+                          accurateTrackBounce:true,
+                          webvisor:true
+                      });
+                  } catch(e) { }
+              });
+
+              var n = d.getElementsByTagName("script")[0],
+                  s = d.createElement("script"),
+                  f = function () { n.parentNode.insertBefore(s, n); };
+              s.type = "text/javascript";
+              s.async = true;
+              s.src = "https://mc.yandex.ru/metrika/tag.js";
+
+              if (w.opera == "[object Opera]") {
+                  d.addEventListener("DOMContentLoaded", f, false);
+              } else { f(); }
+          })(document, window, "yandex_metrika_callbacks2");
+      </script>
+      <noscript><div><img src="https://mc.yandex.ru/watch/24216865" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+      <!-- /Yandex.Metrika counter -->
+		
+	<svg class="svg"></svg>
+
+	<script type="text/javascript">
+
+		//Sound
+		let actx = new (window.AudioContext || window.webkitAudioContext)();
+		class Peep {
+			constructor(context){
+				this.context = context;
+			}
+			init(){
+				this.oscillator = this.context.createOscillator();
+				this.gain = this.context.createGain();
+				this.oscillator.connect(this.gain);
+				this.gain.connect(this.context.destination);
+				this.oscillator.type = 'square';
+			}
+			play(time){
+				this.init();
+				this.oscillator.frequency.value = 4000;
+				this.gain.gain.setValueAtTime(.1, time);
+				this.gain.gain.setValueAtTime(0, time + .1);
+				this.gain.gain.setValueAtTime(.1, time + .2);
+				this.gain.gain.setValueAtTime(0, time + .3);
+				this.oscillator.start(time);
+				this.oscillator.stop(time + .3);
+				// this.stop(time);
+			}
+		};
+		let peep = new Peep(actx);
+
+		//SVG & Stuff
+		let ns = 'http://www.w3.org/2000/svg';
+		let svg = document.querySelector('.svg');
+		let radius = Math.min(window.innerHeight / 3, window.innerWidth / 2.5);
+		let lastH = false;
+		let lastF = false;
+		let jsInBack = false;
+		let cycle = false;
+		window.onfocus = ()=>{if (cycle){clearTimeout(cycle)}; jsInBack = false; updateHuers();};
+		window.onblur = ()=>{jsInBack = true};
+
+		//colors
+		let colors = {back: '#161419',main: '#fff', secondary: '#ffc94e', dim: '#32343d', sector: '#1d1a21'};
+		// let colors = {back: '#f0f', main: '#f00', secondary: '#0f0', dim: '#00f', sector: '#0ff'};
+		// let colors = {back: '#fff', main: '#000', secondary: '#999', dim: '#ddd', sector: '#f6f6f6'};
+		document.body.style.background = colors.back;
+
+		//Sunrise and sunset
+		let stamp = new Date();
+		let dayN = dayNo(stamp.getFullYear(), stamp.getMonth(), stamp.getDate());
+		let sra = getSunPoint(dayN,true) / 24 * Math.PI * 2 - Math.PI / 2;
+		let ssa = getSunPoint(dayN,false) / 24 * Math.PI * 2 - Math.PI / 2;
+		let arcFlag = ssa - sra > Math.PI ? 1 : 0;
+		let sector = document.createElementNS(ns,'path');
+		sector.setAttribute('fill', colors.sector);
+		sector.setAttribute('transform', 'translate('+window.innerWidth / 2+','+window.innerHeight / 2+')');
+		sector.setAttribute('d','M '+radius * Math.cos(sra)+','+radius * Math.sin(sra)+' A '+radius+','+radius+' 0 '+arcFlag+' 1 '+radius * Math.cos(ssa)+','+radius * Math.sin(ssa)+' L 0,0');
+		svg.appendChild(sector);
+
+		//Circle
+		let ring = document.createElementNS(ns,'circle');
+		ring.setAttribute('cx', window.innerWidth / 2);
+		ring.setAttribute('cy', window.innerHeight / 2);
+		ring.setAttribute('r', radius);
+		ring.setAttribute('stroke',colors.dim);
+		ring.setAttribute('fill','none');
+		ring.setAttribute('stroke-width','16px');
+		svg.appendChild(ring);
+
+		//Marks and digits
+		for (let i = 0; i < 100; i++){
+
+			let ten = i%10 === 0;
+
+			let g = document.createElementNS(ns,'g');
+			g.setAttribute('transform', 'translate('+window.innerWidth / 2+','+window.innerHeight / 2+')');
+			let mark = document.createElementNS(ns,'path');
+			mark.setAttribute('d', 'M0,'+(-radius*.95 - 3)+' L0,'+(-radius*.95 + (ten ? 12 : 3)));
+			mark.setAttribute('stroke', colors.dim);
+			mark.setAttribute('stroke-width','3px');
+			mark.setAttribute('transform', 'rotate('+i*(360/100)+')')
+			g.appendChild(mark);
+			svg.appendChild(g);
+
+			if (ten) {
+
+				let dg = document.createElementNS(ns,'g');
+				dg.setAttribute('transform', 'translate('+window.innerWidth / 2+','+window.innerHeight / 2+') rotate('+i*(360/100)+')');
+				let digit = document.createElementNS(ns,'text');
+				digit.innerHTML = i;
+				digit.setAttribute('fill', colors.dim);
+				// digit.setAttribute('dy', -radius*.78);
+				digit.setAttribute('text-anchor','middle');
+				digit.setAttribute('dominant-baseline', 'middle');
+				digit.setAttribute('transform','translate(0,'+radius*-.82+') rotate('+i*(-360/100)+')')
+				digit.style.font = '36px LatoWeb';
+				dg.appendChild(digit);
+				svg.appendChild(dg);
+
+			}
+
+		}
+
+		//Huer arrow
+		let ag = document.createElementNS(ns,'g');
+		ag.setAttribute('transform', 'translate('+window.innerWidth / 2+','+window.innerHeight / 2+')');
+		let arrow = document.createElementNS(ns,'path');
+		arrow.setAttribute('d', 'M0,'+(radius*.1)+' L0,'+(-radius*.93));
+		arrow.setAttribute('stroke', colors.main);
+		arrow.setAttribute('stroke-width','5px');
+		ag.appendChild(arrow);
+		svg.appendChild(ag);
+
+		//100 arrow
+		let a2g = document.createElementNS(ns,'g');
+		a2g.setAttribute('transform', 'translate('+window.innerWidth / 2+','+window.innerHeight / 2+')');
+		let marrow = document.createElementNS(ns,'path');
+		marrow.setAttribute('d', 'M0,'+(radius*.2)+' L0,'+(-radius*.93));
+		marrow.setAttribute('stroke', colors.secondary);
+		marrow.setAttribute('stroke-width','2px');
+		a2g.appendChild(marrow);
+		svg.appendChild(a2g);
+
+		//1000 arrow
+		let a3g = document.createElementNS(ns,'g');
+		a3g.setAttribute('transform', 'translate('+window.innerWidth / 2+','+window.innerHeight / 2+')');
+		let narrow = document.createElementNS(ns,'path');
+		narrow.setAttribute('d', 'M0,'+(radius*.3)+' L0,'+(-radius*.93));
+		narrow.setAttribute('stroke', colors.dim);
+		narrow.setAttribute('stroke-width','1px');
+		a3g.appendChild(narrow);
+		svg.appendChild(a3g);
+
+		//Central circle
+		let base = document.createElementNS(ns,'circle');
+		base.setAttribute('cx', window.innerWidth / 2);
+		base.setAttribute('cy', window.innerHeight / 2);
+		base.setAttribute('r', 6);
+		base.setAttribute('stroke','none');
+		base.setAttribute('fill', colors.main);
+		svg.appendChild(base);
+
+		//Central dot
+		let cap = document.createElementNS(ns,'circle');
+		cap.setAttribute('cx', window.innerWidth / 2);
+		cap.setAttribute('cy', window.innerHeight / 2);
+		cap.setAttribute('r', 2);
+		cap.setAttribute('stroke','none');
+		cap.setAttribute('fill', colors.dim);
+		svg.appendChild(cap);
+
+		//Time
+		let txt = document.createElementNS(ns,'text');
+		txt.setAttribute('fill', colors.main);
+		txt.setAttribute('text-anchor','middle');
+		txt.style.font = '56px LatoWebHeavy';
+		txt.setAttribute('transform','translate('+window.innerWidth / 2+','+(window.innerHeight / 2 + radius / 2)+')');
+		svg.appendChild(txt);
+
+		//Location
+		let city = document.createElementNS(ns,'text');
+		city.setAttribute('fill', colors.dim);
+		city.setAttribute('text-anchor','middle');
+		city.style.font = '40px LatoWeb';
+		city.setAttribute('transform','translate('+window.innerWidth / 2+','+(window.innerHeight / 2 + radius * 1.3)+')');
+		city.innerHTML = 'Москва';
+		svg.appendChild(city);
+
+		function getHuers(){
+			let date = new Date();
+			let totalMSeconds = date.getHours() * 3600000 + date.getMinutes() * 60000 + date.getSeconds() * 1000 + date.getMilliseconds();
+			let huers = totalMSeconds / 86400000 * 100;
+			return huers;
+		}
+
+		function updateHuers(){
+			let h = getHuers();
+			arrow.setAttribute('transform', 'rotate('+h*(360/100)+')');
+			marrow.setAttribute('transform', 'rotate('+(h - Math.floor(h))*360+')');
+			narrow.setAttribute('transform', 'rotate('+(h*100 - Math.floor(h*100))*360+')');
+
+			let hh = Math.floor((h - Math.floor(h))*100);
+			let th = Math.floor((h*100 - Math.floor(h*100))*100);
+
+			txt.innerHTML = Math.floor(h) + ' <tspan class="flicker" baseline-shift="4">:</tspan> ' + (hh < 10 ? '0' + hh : hh);
+			// txt.innerHTML = Math.floor(h) + '<tspan fill="'+colors.secondary+'"> : ' + (hh < 10 ? '0' + hh : hh) + '</tspan><tspan fill="'+colors.dim+'"> : ' + (th < 10 ? '0' + th : th) + '</tspan>';
+
+			let nowH = Math.floor(h);
+			if (lastH && nowH !== lastH) peep.play(actx.currentTime);
+			lastH = nowH;
+
+			// let nowF = Math.floor(h*2000);
+			// if (lastF && lastF !== nowF) txt.classList.toggle('fire');
+			// lastF = nowF;
+
+			// console.log(lastF, nowF);
+
+			cycle = setTimeout(updateHuers, jsInBack ? 864 : 15);
+		}
+
+		function getSunPoint(day, sunrise) {
+
+		    // Credits to http://williams.best.vwh.net/sunrise_sunset_algorithm.htm
+
+		    var longitude = 37.6173;
+		    var latitude = 55.755826;
+		    var zenith = 90.83333333333333;
+		    var D2R = Math.PI / 180;
+		    var R2D = 180 / Math.PI;
+
+		    // convert the longitude to hour value and calculate an approximate time
+		    var lnHour = longitude / 15;
+		    var t;
+		    if (sunrise) {
+		        t = day + ((6 - lnHour) / 24);
+		    } else {
+		        t = day + ((18 - lnHour) / 24);
+		    };
+
+		    //calculate the Sun's mean anomaly
+		    M = (0.9856 * t) - 3.289;
+
+		    //calculate the Sun's true longitude
+		    L = M + (1.916 * Math.sin(M * D2R)) + (0.020 * Math.sin(2 * M * D2R)) + 282.634;
+		    if (L > 360) {
+		        L = L - 360;
+		    } else if (L < 0) {
+		        L = L + 360;
+		    };
+
+		    //calculate the Sun's right ascension
+		    RA = R2D * Math.atan(0.91764 * Math.tan(L * D2R));
+		    if (RA > 360) {
+		        RA = RA - 360;
+		    } else if (RA < 0) {
+		        RA = RA + 360;
+		    };
+
+		    //right ascension value needs to be in the same qua
+		    Lquadrant = (Math.floor(L / (90))) * 90;
+		    RAquadrant = (Math.floor(RA / 90)) * 90;
+		    RA = RA + (Lquadrant - RAquadrant);
+
+		    //right ascension value needs to be converted into hours
+		    RA = RA / 15;
+
+		    //calculate the Sun's declination
+		    sinDec = 0.39782 * Math.sin(L * D2R);
+		    cosDec = Math.cos(Math.asin(sinDec));
+
+		    //calculate the Sun's local hour angle
+		    cosH = (Math.cos(zenith * D2R) - (sinDec * Math.sin(latitude * D2R))) / (cosDec * Math.cos(latitude * D2R));
+		    var H;
+		    if (sunrise) {
+		        H = 360 - R2D * Math.acos(cosH)
+		    } else {
+		        H = R2D * Math.acos(cosH)
+		    };
+		    H = H / 15;
+
+		    //calculate local mean time of rising/setting
+		    T = H + RA - (0.06571 * t) - 6.622;
+
+		    //adjust back to UTC
+		    UT = T - lnHour;
+		    if (UT > 24) {
+		        UT = UT - 24;
+		    } else if (UT < 0) {
+		        UT = UT + 24;
+		    }
+
+		    //convert UT value to local time zone of latitude/longitude
+		    localT = UT + 3;
+
+		    return localT;
+		}
+
+		function dayNo(y,m,d){
+			//Credits to https://stackoverflow.com/users/588079/gitaarlab
+			return m*31-(m>1?(1054267675>>m*3-6&7)-(y&3||!(y%25)&&y&15?0:1):0)+d;
+		}
+
+		updateHuers();
+
+	</script>
+
+
+	</body>
+
+</html>

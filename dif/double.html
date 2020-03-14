@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Pendulum</title>
+        <script src="double/vector.js"></script>
+        <script src="double/light.js"></script>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow: hidden;}
+            canvas#vessel {
+            	width:100%; 
+            	height: 100%;
+            }
+            h1 {
+            	position: absolute;
+            	display: flex;
+            	align-items: center;
+            	justify-content: center;
+            	font: 800 12vw/12vw 'TT Norms';
+            	margin:0;
+            	left: 0;
+            	top: 0;
+            	width: 100%;
+            	height: 100%;
+            	color: #112;
+            	text-align: center;
+            }
+        </style>
+</head>
+<body>
+<canvas id="vessel" ></canvas>
+<!-- <h1>Глаз<br>циклона</h1> -->
+<script type="text/javascript">
+
+class Core {
+
+	constructor(canvas) {
+
+		this.canvas = canvas;
+		this.ratio = window.devicePixelRatio;
+		this.canvas.width = this.canvas.clientWidth * this.ratio;
+		this.canvas.height = this.canvas.clientHeight * this.ratio;
+		this.ctx = this.canvas.getContext('2d');
+		this.halfWidth = this.canvas.width * .5;
+		this.halfHeight = this.canvas.height * .5;
+
+		this.vCanvas = document.createElement('canvas');
+		this.vCanvas.width = this.canvas.width;
+		this.vCanvas.height = this.canvas.height;
+		this.vctx = this.vCanvas.getContext('2d');
+
+		this.camera = {
+			x: 400,
+			y: 400,
+			zoom: 1
+		}
+
+		this.time = {
+			tt: 0,
+			dt: 0,
+			lt: 0,
+			scale: .1
+		};
+
+		this.gravity = .005;
+		this.damping = .0005;
+
+		this.colorspace = light('rgba(246,237,223,1)','rgba(249,157,80,1)','rgba(199,71,55,1)','rgba(103,42,73,1)','rgba(68,28,62,1)');
+
+		this.pendulums = [
+			{
+				a: 0,//Math.PI - .01,
+				v: .1,
+				la: 0,
+				lv: .1,
+				g1: light('rgba(246,237,223,1)','rgba(249,157,80,1)','rgba(199,71,55,1)','rgba(103,42,73,1)','rgba(68,28,62,1)')
+			},
+			{
+				a: Math.PI - .01,
+				v: -.1,
+				la: Math.PI - .01,
+				lv: -.1,
+				g1: light('rgb(18,20,22)','rgb(32,64,96)','rgb(252,248,126)')
+			}
+		]
+
+		//TST
+		this.pendulums = [];
+		// for (let i = 0; i < 32; i++){
+		// 	let a = i/4;
+		// 	let v = Math.random() - .5;//i/50-.32;
+		// 	this.pendulums.push({a: a, v: v, la: a, lv: v, g1: light('rgb(255,0,'+Math.floor(Math.random()*256)+')')});
+		// }
+		this.ids = 0;
+		this.maxP = 10;
+		this.spawn();
+		setInterval(()=>{
+			if (this.pendulums.length > this.maxP) this.pendulums.shift();
+			this.spawn();
+
+		},3000);
+		//END
+
+		this.penVisual = {
+			x: 50*this.ratio,
+			y: 50*this.ratio,
+			l: 20 * this.ratio,
+			r: 2 * this.ratio
+		}
+
+
+		this.run();
+		setInterval(this.update.bind(this),5);
+
+	}
+
+	spawn(){
+		let a = (Math.random()-.5)*Math.PI*4;
+		let a2 = (Math.random()-.5)*Math.PI*4;
+		let v = (Math.random()-.5) / 8;
+		let v2 = (Math.random()-.5) / 8;
+		if (this.ids > this.maxP) this.ids=0;
+		this.pendulums.push({id: this.ids++, a: a, v: v, la: a, lv: v, a2: a2, v2: v2, g1: light(this.colorspace(Math.sin(this.time.tt)/2+.5))});
+	}
+
+	run() {
+
+		this.frameID = requestAnimationFrame(this.run.bind(this));
+		this.frame();
+
+	}
+
+	frame(){
+
+		this.ctx.fillStyle = '#112';
+		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+		
+		// this.update();
+		this.drawPlot();
+		this.drawPendulum();
+
+	}
+
+	clampAngle(a){
+		if (a > Math.PI * 4){
+			a -= Math.PI * 8;
+		} else if (a < -Math.PI * 4){
+			a += Math.PI * 8;
+		}
+		return a;
+	}
+
+	update(){
+		let now = window.performance.now();
+		this.time.dt = (now - this.time.lt) * this.time.scale;
+		this.time.tt += this.time.dt;
+		this.time.lt = now;
+
+		for (let i = 0; i < this.pendulums.length; i++){
+
+			let p = this.pendulums[i];
+			
+			let g = .05;
+			let r1 = 50, r2 = 50;
+			let l1 = 200, l2 = 200;
+
+			let acc1 = (-g * (2 * r1 + r2) * Math.sin(p.a) - r2 * g * Math.sin(p.a - 2 * p.a2) - 2 * Math.sin(p.a - p.a2) * r2 * (p.v2**2 * l2 + p.v**2 * l1 * Math.cos(p.a - p.a2))) / (l1 * (2 * r1 + r2 - r2 * Math.cos(2 * p.a - 2 * p.a2)));
+			let acc2 = (2 * Math.sin(p.a - p.a2) * (p.v**2 * l1 * (r1 + r2) + g * (r1 + r2) * Math.cos(p.a) + p.v2**2 * l2 * r2 * Math.cos(p.a - p.a2))) / (l2 * (2 * r1 + r2 - r2 * Math.cos(2 * p.a - 2 * p.a2)));
+
+
+			p.v += acc1;
+			p.v2 += acc2;
+
+			p.v *= (1 - this.damping);
+			p.v2 *= (1 - this.damping);
+
+			p.a += p.v;
+			p.a2 += p.v2;
+
+			p.a = this.clampAngle(p.a);
+			p.a2 = this.clampAngle(p.a2);
+
+
+		}
+
+	}
+
+	updatePlot(){
+
+		// this.vctx.fillStyle = '#11112206';
+		// this.vctx.fillRect(0,0,this.vCanvas.width,this.vCanvas.height);
+
+		let ky = 4;
+		let kx = .05;
+		let sx = 1+kx, s2x = 1+kx*2;
+
+		for (let i = 0; i < this.pendulums.length; i++){
+
+			let p = this.pendulums[i];
+
+			let x0 = this.canvas.width*sx - this.canvas.width*s2x * (p.la / Math.PI / 8 + .5);
+			let x1 = this.canvas.width*sx - this.canvas.width*s2x * (p.a2 / Math.PI / 8 + .5);
+			let y0 = this.canvas.height * p.lv * ky + this.halfHeight;
+			let y1 = this.canvas.height * p.v2 * ky + this.halfHeight;
+
+			if (Math.abs(p.la - p.a2) < Math.PI){
+
+				// this.vctx.strokeStyle = '#3223ff';
+				this.vctx.strokeStyle = this.colorspace(p.v*16+.5);
+				this.vctx.lineWidth = this.ratio*4*(Math.sin(p.a)/2+.5) + .5;
+				this.vctx.lineCap = 'round';
+				this.vctx.beginPath();
+				this.vctx.moveTo(x0,y0);
+				this.vctx.lineTo(x1,y1);
+				this.vctx.stroke();
+
+			}
+
+			p.la = p.a2;
+			p.lv = p.v2;
+
+		}
+
+	}
+
+	drawPlot(){
+		// this.vctx.fillStyle = '#3223ff';
+		// this.vctx.fillRect(20,20,this.vCanvas.width-40, this.vCanvas.height-40);
+		this.updatePlot();
+		this.ctx.drawImage(this.vCanvas,0,0);
+
+	}
+
+	drawPendulum(){
+
+		for (let i = 0; i < this.pendulums.length; i++){
+
+			let p = this.pendulums[i];
+
+			this.ctx.save();
+			this.ctx.translate(this.penVisual.x + (p.id)*this.penVisual.l*2,this.penVisual.y);
+			this.ctx.rotate(p.a);
+
+			this.ctx.strokeStyle = '#fff';
+			this.ctx.lineWidth = 2;
+			this.ctx.beginPath();
+			this.ctx.moveTo(0,0);
+			this.ctx.lineTo(0,this.penVisual.l);
+			this.ctx.stroke();
+
+			this.ctx.fillStyle = '#fff';
+			this.ctx.beginPath();
+			this.ctx.arc(0,this.penVisual.l, this.penVisual.r, 0, Math.PI * 2);
+			this.ctx.closePath();
+			this.ctx.fill();
+
+			this.ctx.translate(0, this.penVisual.l);
+			this.ctx.rotate(p.a2 - p.a);
+			this.ctx.strokeStyle = '#fff';
+			this.ctx.beginPath();
+			this.ctx.moveTo(0,0);
+			this.ctx.lineTo(0,this.penVisual.l);
+			this.ctx.stroke();
+
+			this.ctx.fillStyle = '#fff';
+			this.ctx.beginPath();
+			this.ctx.arc(0,this.penVisual.l, this.penVisual.r, 0, Math.PI * 2);
+			this.ctx.closePath();
+			this.ctx.fill();
+
+			this.ctx.restore();
+		}
+
+	}
+
+}
+
+var core = new Core(document.getElementById('vessel'));
+
+
+</script>
+</body>
+</html>

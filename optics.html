@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Rays and stuff</title>
+        <script src="optics/vector.js"></script>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow-y: hidden;}
+            canvas#vessel {
+            	width:100%; 
+            	height: 100%
+            }
+        </style>
+</head>
+<body>
+<canvas id="vessel"></canvas>
+<script type="text/javascript">
+var core;
+class Core {
+	constructor(canvas) {
+		this.canvas = canvas;
+		this.ratio = window.devicePixelRatio;
+		this.camera = {
+			x: 0,
+			y: 0,
+			zoom: 1
+		}
+		this.time = {
+			tt: 0,
+			dt: 0,
+			lt: 0
+		};
+		this.canvas.width = this.canvas.clientWidth * this.ratio;
+		this.canvas.height = this.canvas.clientHeight * this.ratio;
+		this.ctx = this.canvas.getContext('2d');
+		this.ctx.fillStyle = 'rgb(0,0,0)';
+		this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+		this.mouse = new Vector(this.canvas.width / 2, this.canvas.height / 2);
+
+		// Data stuff
+		this.rays = [];
+		this.solids = [];
+		this.depth = 6;
+		this.energyTreshold = .001;
+		this.ior = 1;
+		this.epsilon = .0001;
+
+		//Liseners
+		this.canvas.addEventListener('click', function(e){
+		}.bind(this))
+
+		this.canvas.addEventListener('mousemove', function(e){
+			this.mouse = new Vector(e.clientX * this.ratio, e.clientY * this.ratio);
+			for (let i = 0; i < this.rays.length; i++){
+				this.rays[i].d = this.rays[i].o.distanceTo(this.mouse);
+				this.rays[i].d.rotate(i/500);
+				this.rays[i].d.normalize();
+			}
+			this.frame();
+		}.bind(this))
+
+		//Do once
+
+		//Scene
+		this.solids.push(new Solid(this, [new Vector(0, 0), new Vector(this.canvas.width, 0), new Vector(this.canvas.width, this.canvas.height), new Vector(0, this.canvas.height)], 1, true));
+
+		//Prism
+		// this.solids.push(new Solid(this, [new Vector(this.canvas.width / 2 + 600, this.canvas.height / 2 - 100), new Vector(this.canvas.width / 2 + 700, this.canvas.height / 2 + 50), new Vector(this.canvas.width / 2 + 500, this.canvas.height / 2 + 50)], 1.33346));
+
+		//Fiber
+		// this.solids.push(new Solid(this, [new Vector(900, 500), new Vector(1500, 500), new Vector(2000, 700), new Vector(2200, 1000), new Vector(2170, 1020), new Vector(1970, 740), new Vector(1500, 550), new Vector(900, 550)], 1.51714));
+
+		//Diamond
+		// this.solids.push(new Solid(this, [new Vector(900, 800), new Vector(1100, 800), new Vector(1200, 900), new Vector(1000, 1100), new Vector(800, 900)], 2.417));
+
+		//Mirror
+		this.solids.push(new Solid(this, [new Vector(0, this.canvas.height - 100), new Vector(this.canvas.width, this.canvas.height - 100), new Vector(this.canvas.width, this.canvas.height), new Vector(0, this.canvas.height)], 1.33346, false, 1));
+
+		//Lens
+		this.createSphericalLens(new Vector(this.canvas.width / 2 - 350, this.canvas.height / 2), 500, .9, 0, 1.51714);
+		this.createSphericalLens(new Vector(this.canvas.width / 2 + 350, this.canvas.height / 2), 200, -.6, 0, 1.51714);
+		// this.createSphericalLens(new Vector(this.canvas.width / 3 * 2, this.canvas.height / 2), 300, .8, Math.PI, 1.33346);
+
+		//Single ray
+		// this.rays.push(new Ray(this, new Vector(200,700), -.95, this.depth, 1, 550));
+
+		//Spectrum
+		for (let w = 380; w < 700; w += 2){
+			this.rays.push(new Ray(this, new Vector(0, this.canvas.height / 2), 0, this.depth, .1, w));
+		}
+
+		//Parallel
+		// for (let h = 0; h < this.canvas.height; h += 10){
+		// 	this.rays.push(new Ray(this, new Vector(0,h), 0, this.depth, .1, 700));	
+		// }
+
+		this.frame();
+	}
+	createSphericalLens(origin, size, convexity, angle, ior){
+
+		if (convexity > 0 && convexity < 2){
+
+			let pDelta1 = new Vector (Math.sin(angle) * size / -2, Math.cos(angle) * size / -2);
+			let pDelta2 = new Vector (Math.sin(angle) * size / 2, Math.cos(angle) * size / 2);
+
+			let p1 = origin.sum(pDelta1); //new Vector(origin.x, origin.y + size * .5);
+			let p2 = origin.sum(pDelta2); //new Vector(origin.x, origin.y - size * .5);
+
+			let fi = convexity * Math.PI;
+			let alfa = (Math.PI - fi) / 2;
+			let r = size / (2 * Math.cos(alfa));
+			let h = r * Math.sin(alfa);
+
+			let centerDelta = new Vector(h * Math.cos(angle), -h * Math.sin(angle));
+			let center = origin.sum(centerDelta);
+
+			let a1 = goodAngle(Math.PI - fi / 2 - angle);
+			let a2 = goodAngle(-Math.PI + fi / 2 - angle);
+
+			this.solids.push(new Solid(this, [{center: center, radius: r, a1: a1, a2: a2}, p1, p2], ior));
+
+		} else if (convexity < 0 && convexity > -1) {
+			let pDelta1 = new Vector (Math.sin(angle) * size / -2, Math.cos(angle) * size / -2);
+			let pDelta2 = new Vector (Math.sin(angle) * size / 2, Math.cos(angle) * size / 2);
+
+			let p1 = origin.sum(pDelta1);
+			let p2 = origin.sum(pDelta2);
+
+			let fi = -convexity * Math.PI;
+			let alfa = (Math.PI - fi) / 2;
+			let r = size / (2 * Math.cos(alfa));
+			let h = r * Math.sin(alfa);
+
+			let deltaH = new Vector((h - r - 10) * Math.cos(-angle), (h - r - 10) * Math.sin(-angle));
+			let p3 = p1.sum(deltaH);
+			let p4 = p2.sum(deltaH);
+
+			let centerDelta = new Vector((-r - 10) * Math.cos(angle), (r + 10) * Math.sin(angle));
+			let center = origin.sum(centerDelta);
+
+			let a1 = goodAngle(-fi / 2 - angle);
+			let a2 = goodAngle(fi / 2 - angle);
+
+			// console.log(p3, p1, p2, p4);
+
+			this.solids.push(new Solid(this, [{center: center, radius: r, a1: a1, a2: a2, isFlipped: true}, p4, p2, p1, p3], ior, false));
+
+		}
+	}
+	castRays(){
+		for (let i = 0; i < this.rays.length; i++){
+			this.rays[i].cast();
+		}
+	}
+	displayRays(){
+		for (let i = 0; i < this.rays.length; i++){
+			this.rays[i].display();
+		}
+	}
+	displaySolids(){
+		for (let i = 0; i < this.solids.length; i++){
+			this.solids[i].display();
+		}
+	}
+	frame(){
+		//Do every frame
+
+		this.ctx.fillStyle = '#000';
+		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+		this.ctx.fillStyle = '#FFF';
+
+		//FPS
+		// this.ctx.font = '30px Tahoma';
+		// this.ctx.fillText(Math.floor(1000 / this.time.dt) + ' fps', 100, 100);
+
+		// this.createSphericalLens(new Vector(this.canvas.width / 2 - 350, this.canvas.height / 2), 500, .9, Math.sin(this.time.tt / 5000), 1.51714);
+		// this.createSphericalLens(new Vector(this.canvas.width / 2, this.canvas.height / 2), 600, (Math.sin(this.time.tt / 3000) + 1) / 2 + .1, Math.sin(this.time.tt / 5000), 1.33346);
+
+		this.castRays();
+		this.displayRays();
+		this.displaySolids();
+
+		// this.solids.pop();
+	}
+	run() {
+		this.frameID = requestAnimationFrame(this.run.bind(this));
+		let now = window.performance.now();
+		this.time.dt = now - this.time.lt;
+		this.time.tt += this.time.dt;
+		this.time.lt = now;
+		// for (let r = 0; r < this.rays.length; r++){
+		// 	this.rays[r].d.rotate(Math.sin(this.time.tt / 5000) * .0016);
+		// }
+		// this.frame();
+	}
+}
+
+class Ray {
+	constructor(core, from, direction, depth, energy, wavelength){
+		this.core = core;
+		this.depth = depth;
+		this.energy = energy;
+		this.o = from;
+		this.d = direction instanceof Vector ? direction : new Vector(Math.cos(direction), Math.sin(direction));
+		this.wavelength = wavelength || 650;
+
+		let rgb = this.waveToRgb(this.wavelength);
+		this.color = 'rgba('+rgb.r+', '+rgb.g+', '+rgb.b+', '+ this.energy +')';
+
+		this.next = [];
+		this.cast();
+	}
+	display(){
+
+		let ctx = this.core.ctx;
+
+		ctx.save();
+		ctx.globalCompositeOperation = 'screen';
+		ctx.beginPath();
+		ctx.moveTo(this.o.x, this.o.y);
+		ctx.lineTo(this.target.x, this.target.y);
+		ctx.lineWidth = 4;
+		ctx.strokeStyle = this.color;
+		ctx.stroke();
+		ctx.stroke();
+		ctx.restore();
+
+		//Target
+		// ctx.strokeStyle = '#0F0';
+		// ctx.lineWidth = 3;
+		// ctx.beginPath();
+		// ctx.arc(this.target.x, this.target.y, 10, 0, Math.PI * 2);
+		// ctx.closePath();
+		// ctx.stroke();
+
+		for (let i = 0; i < this.next.length; i++){
+			this.next[i].display();
+		}
+		
+	}
+	getClosestIntersection(solids){
+		let closestmag = Infinity;
+		let closest = false;
+
+		for (let k = 0; k < solids.length; k++){
+			let solid = solids[k];
+			if (solid instanceof Solid){
+				for (let i = 0; i < solid.edges.length; i++){
+					let intersect = false;
+					if (solid.edges[i].type === 'cut'){
+						intersect = this.calculateCutIntersection(solid.edges[i], solid, closestmag);
+					} else if (solid.edges[i].type === 'circle'){
+						intersect = this.calculateCircleIntersection(solid.edges[i], solid, closestmag);
+					}
+					if (intersect){
+						closest = intersect;
+						closestmag = intersect.mag;
+					}
+				}
+			}
+		}
+		return closest;
+	}
+	getCircleIntersection(circle){
+		// Returns additional magnitude and normal attributes
+		let intersection = false;
+		let oc = circle.center.distanceTo(this.o);
+		let a = this.d.dot(this.d);
+		let b = 2 * oc.dot(this.d);
+		let c = oc.dot(oc) - circle.radius * circle.radius;
+		let discriminant = b * b - 4 * a * c;
+		let p1, p2;
+		if (discriminant >= 0){
+			discriminant = Math.sqrt(discriminant);
+			let t1 = (-b - discriminant) / (2 * a);
+			let t2 = (-b + discriminant) / (2 * a);
+			if (t1 > 0){
+				p1 = this.d.clone();
+				p1.mult(t1);
+				p1.mag = p1.mag();
+				p1.add(this.o);
+				p1.normal = circle.center.distanceTo(p1);
+				p1.normal.normalize();
+				if (circle.isFlipped){
+					p1.normal.mult(-1);
+					if (!this.checkArc(circle, p1.normal.angle())) {
+						p1 = false;
+					}
+				}
+			}
+			if (t2 > 0){
+				p2 = this.d.clone();
+				p2.mult(t2);
+				p2.mag = p2.mag();
+				p2.add(this.o);
+				p2.normal = circle.center.distanceTo(p2);
+				p2.normal.normalize();
+				if (circle.isFlipped){
+					p2.normal.mult(-1);
+					if (!this.checkArc(circle, p2.normal.angle())) {
+						p2 = false;
+					}
+				}
+			}	
+		}
+		if (p1 && p2){
+			intersection = p1.mag > p2.mag ? p2 : p1;
+		} else if (p1){
+			intersection = p1;
+		} else if (p2) {
+			intersection = p2;
+		}
+
+		if (intersection && !circle.isFlipped && !this.checkArc(circle, intersection.normal.angle())){
+			intersection = false;
+		}
+
+		return intersection;
+	}
+	checkArc(circle, angle){
+		let withinArc;
+		if (circle.isFlipped){
+			let good = goodAngle(angle + Math.PI);
+			if (circle.a1 < circle.a2){
+				withinArc = good >= circle.a1 && good <= circle.a2;
+			} else {
+				withinArc = good >= circle.a1 || good <= circle.a2;
+			}
+		} else {
+			if (circle.a1 > circle.a2){
+				withinArc = angle >= circle.a1 || angle <= circle.a2;
+			} else {
+				withinArc = angle >= circle.a1 && angle <= circle.a2;
+			}
+		}
+		return withinArc;
+	}
+	calculateCircleIntersection(side, solid, closestmag){
+		let intersection = this.getCircleIntersection(side);
+
+		if (intersection.mag < closestmag && intersection.mag > this.core.epsilon){
+
+			if (solid.isShadow){
+				intersection.deadEnd = true;
+				return intersection;
+			} else {
+
+				// let withinArc;
+				// let angle = intersection.normal.angle();
+				// // if (side.isFlipped) angle = goodAngle(angle + Math.PI);
+
+				// if (side.isFlipped){
+				// 	if (side.a1 < side.a2){
+				// 		withinArc = angle >= side.a1 && angle <= side.a2;
+				// 	} else {
+				// 		withinArc = angle <= side.a1 || angle >= side.a2;
+				// 	}
+				// } else {
+				// 	if (side.a1 > side.a2){
+				// 		withinArc = angle >= side.a1 || angle <= side.a2;
+				// 	} else {
+				// 		withinArc = angle >= side.a1 && angle <= side.a2;
+				// 	}
+				// }
+
+				// if (withinArc){
+					intersection.reflection = this.calculateReflection(intersection.normal);
+					intersection.refraction = this.calculateRefraction(solid.ior, this.core.ior, intersection.normal);
+					if (intersection.refraction.x === 0 && intersection.refraction.y === 0){
+						intersection.refraction = false;
+					}
+					intersection.reflectionIndex = solid.ri ? solid.ri : this.getFresnel(intersection.normal);
+					return intersection;
+				// }
+			}
+		}
+	}
+	getCutIntersection(cut){
+		let intersection = false;
+		let p = this.o;
+		let r = this.d;
+		let q = cut.o;
+		let s = cut.d.clone();
+		s.normalize();
+		let u0 = cut.d.mag();
+		let qp = this.o.distanceTo(cut.o);
+		let t = qp.cross(s) / r.cross(s);
+		let u = qp.cross(r) / r.cross(s);
+		u /= u0;
+		if (t > 0 && u >= 0 && u <=1){
+			let point = this.d.clone();
+			point.mult(t);
+			point.mag = point.mag();
+			point.add(this.o);
+			point.normal = cut.normal;
+			intersection = point;
+		}
+		return intersection;
+	}
+	calculateCutIntersection(side, solid, closestmag){
+
+		let intersection = this.getCutIntersection(side);
+
+		if (intersection.mag < closestmag && intersection.mag > this.core.epsilon) {
+
+			if (solid.isShadow){
+				intersection.deadEnd = true;
+				return intersection;
+			} else {
+				let reflection = this.calculateReflection(intersection.normal);
+				let refraction = this.calculateRefraction(solid.ior, this.core.ior, intersection.normal);
+
+				if (refraction.x === 0 && refraction.y === 0){
+					refraction = false;
+				}
+
+				// let point = intersection;
+				intersection.reflection = reflection;
+				intersection.refraction = refraction;
+				intersection.reflectionIndex = solid.ri ? solid.ri : this.getFresnel(intersection.normal);
+
+				return intersection;
+			}
+		}	
+	}
+	getFresnel(normal){
+		return .1 + (1 - Math.abs(this.d.dot(normal))) * .3;
+	}
+	getNs(normal, solid, air){
+		let rayFromOutside = this.d.dot(normal) < 0;
+		let n1 = rayFromOutside ? air : solid;
+		let n2 = rayFromOutside ? solid : air;
+
+		return {n1: n1, n2: n2};
+	}
+	calculateRefraction(solid, air, normal){
+		let n = this.getNs(normal, solid, air);
+		n.n1 += (n.n1 - n.n2) * (1 - (this.wavelength - 300) / 400) * .04;
+		let dnDot = this.d.dot(normal);
+		let bigSqrt = Math.sqrt((n.n2 * n.n2 - n.n1 * n.n1) / (dnDot * dnDot) + 1) - 1;
+		let tail = normal.clone();
+		tail.mult(dnDot * bigSqrt);
+		return this.d.sum(tail);
+	}
+	calculateReflection(normal){
+		let dn = this.d.projectTo(normal);
+		let doubleDn = dn.clone();
+		doubleDn.mult(-2);
+		return doubleDn.sum(this.d);
+	}
+	cast(){
+		this.target = this.getClosestIntersection(this.core.solids);
+		this.next = [];
+
+		if (this.depth > 0 && this.target && !this.target.deadEnd){
+
+			let energy = this.energy;
+			let ri = this.target.reflectionIndex;
+
+			if (this.target.refraction === false){
+				ri = 1;
+			} else if (this.target.reflection === false){
+				ri = 0;
+			}
+			if (energy > this.core.energyTreshold){
+				if (ri !== 1){
+					this.next.push(new Ray(this.core, this.target.clone(), this.target.refraction.clone(), this.depth - 1, energy * (1 - ri), this.wavelength));
+				}
+				if (ri !== 0){
+					this.next.push(new Ray(this.core, this.target.clone(), this.target.reflection.clone(), this.depth - 1, energy * ri, this.wavelength));
+				}
+			}
+			
+		}
+	}
+	waveToRgb(w){
+		let red, green, blue, factor;
+	    if (w >= 380 && w < 440)
+	    {
+	        red   = -(w - 440) / (440 - 380);
+	        green = 0.0;
+	        blue  = 1.0;
+	    }
+	    else if (w >= 440 && w < 490)
+	    {
+	        red   = 0.0;
+	        green = (w - 440) / (490 - 440);
+	        blue  = 1.0;
+	    }
+	    else if (w >= 490 && w < 510)
+	    {
+	        red   = 0.0;
+	        green = 1.0;
+	        blue  = -(w - 510) / (510 - 490);
+	    }
+	    else if (w >= 510 && w < 580)
+	    {
+	        red   = (w - 510) / (580 - 510);
+	        green = 1.0;
+	        blue  = 0.0;
+	    }
+	    else if (w >= 580 && w < 645)
+	    {
+	        red   = 1.0;
+	        green = -(w - 645) / (645 - 580);
+	        blue  = 0.0;
+	    }
+	    else if (w >= 645 && w < 781)
+	    {
+	        red   = 1.0;
+	        green = 0.0;
+	        blue  = 0.0;
+	    }
+	    else
+	    {
+	        red   = 0.0;
+	        green = 0.0;
+	        blue  = 0.0;
+	    }
+
+	    if (w >= 380 && w < 420)
+	        factor = 0.3 + 0.7*(w - 380) / (420 - 380);
+	    else if (w >= 420 && w < 701)
+	        factor = 1.0;
+	    else if (w >= 701 && w < 781)
+	        factor = 0.3 + 0.7*(780 - w) / (780 - 700);
+	    else
+	        factor = 0.0;
+
+	    let gamma = 0.80;
+	    let R = (red   > 0 ? 255*Math.pow(red   * factor, gamma) : 0);
+	    let G = (green > 0 ? 255*Math.pow(green * factor, gamma) : 0);
+	    let B = (blue  > 0 ? 255*Math.pow(blue  * factor, gamma) : 0); 
+	    return {r:Math.round(R), g:Math.round(G), b:Math.round(B)};
+	}
+}
+
+class Solid {
+	constructor(core, pointsArray, ior, isShadow, customRi){
+		this.isShadow = isShadow || false;
+		this.core = core;
+		this.ior = ior;
+		this.ri = customRi;
+		this.points = pointsArray;
+		this.buildEdges();
+	}
+	buildEdges(){
+		this.edges = [];
+		this.flipNormals = false;
+		for (let i = 0; i < this.points.length; i++){
+			let j = i + 1 < this.points.length ? i + 1 : 0;
+
+			if (this.points[i] instanceof Vector){
+				if (this.points[j] instanceof Vector){
+
+					let edge = {
+						type: 'cut',
+						o: this.points[i], 
+						d: this.points[i].distanceTo(this.points[j]),
+						o2: this.points[j]
+					};
+					edge.normal = new Vector(edge.o2.y - edge.o.y, edge.o.x - edge.o2.x);
+					edge.normal.normalize();
+					if (this.flipNormals) edge.normal.mult(-1);
+					this.edges.push(edge);
+
+				}
+			} else {
+
+				let edge = {
+					type: 'circle',
+					center: this.points[i].center,
+					radius: this.points[i].radius,
+					a1: this.points[i].a1,
+					a2: this.points[i].a2,
+					isFlipped: this.points[i].isFlipped || false
+				}
+				if (edge.isFlipped) this.flipNormals = true;
+				this.edges.push(edge);
+			}
+		}
+	}
+	display(){
+		if (this.ior !== 1){
+			let ctx = this.core.ctx;
+			ctx.fillStyle = 'rgba(255,255,255,.1)';
+			// ctx.strokeStyle = '#0F0';
+			ctx.beginPath();
+			// if (this.points[0] instanceof Vector){
+			// 	ctx.moveTo(this.points[0].x, this.points[0].y);
+			// 	for (let p = 1; p < this.points.length; p++){
+			// 		ctx.lineTo(this.points[p].x, this.points[p].y);
+			// 	}
+			// } else {
+			// 	ctx.arc(this.points[0].center.x, this.points[0].center.y, this.points[0].radius, this.points[0].a1, this.points[0].a2);
+			// }
+
+			if (this.points[0] instanceof Vector) {
+				ctx.moveTo(this.points[0].x, this.points[0].y);
+			} else {
+				ctx.arc(this.points[0].center.x, this.points[0].center.y, this.points[0].radius, this.points[0].a1, this.points[0].a2);
+			}
+			for (let p = 1; p < this.points.length; p++){
+			 	if (this.points[p] instanceof Vector){
+			 		ctx.lineTo(this.points[p].x, this.points[p].y);
+			 	} else {
+			 		ctx.arc(this.points[p].center.x, this.points[p].center.y, this.points[p].radius, this.points[p].a1, this.points[p].a2);
+			 	}
+			 }
+
+			ctx.closePath();
+			// ctx.stroke();
+			ctx.fill();
+
+			//DISPLAY NORMALS
+			// for (let e = 0; e < this.edges.length; e++){
+			// 	let edge = this.edges[e];
+			// 	if (edge.type === 'cut'){
+			// 		ctx.strokeStyle = '#F00';
+			// 		ctx.lineWidth = 2;
+			// 		ctx.beginPath();
+			// 		let halfEdge = edge.d.clone();
+			// 		halfEdge.mult(.5);
+			// 		ctx.moveTo(edge.o.x + halfEdge.x, edge.o.y + halfEdge.y);
+			// 		ctx.lineTo(edge.o.x + halfEdge.x + edge.normal.x * 100, edge.o.y + halfEdge.y + edge.normal.y * 100);
+			// 		ctx.stroke();
+			// 	}
+			// }
+		}
+	}
+}
+
+window.onload = function(){
+	core = new Core(document.getElementById('vessel'));
+	core.run();
+};
+
+</script>
+</body>
+</html>

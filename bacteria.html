@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Bacteria</title>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; font-family: 'Open Sans', sans-serif; min-height: 700px; overflow: hidden; min-width: 100px}
+          	#thebox {position: absolute; top: 50%; margin-top: -300px; left: 50%; margin-left: -400px; border: 1px dotted #aaa;}
+        </style>
+</head>
+
+<body>
+<canvas  id='thebox' width = "800"; height = "600"; >Чето говно!</canvas>
+		<script>		
+			var canvas 		= document.getElementById("thebox"),
+			    ctx    		= canvas.getContext('2d');
+
+			var center		= {x:canvas.width/2,y:canvas.height/2};
+
+			function goodAngle(ang){
+				var good = ang % (Math.PI*2);
+				if (good > Math.PI) {good = good - Math.PI*2;} else if (good < Math.PI * -1) {good = Math.PI*2 + good}
+				return good; 
+			}
+
+			var Colony = function(id){
+				this.id = id;
+				this.max = 300;
+				this.stack = new Array(this.max);
+				this.vacancy = true;
+			}
+			Colony.prototype.spawn = function(count,x,y,r,momentum){
+				var i = count;
+				var spawnpoint = x && y && r ? {x:function(){return x},y:function(){return y},mx:1,my:1,r:r} : {x:Math.random,y:Math.random,mx:canvas.width,my:canvas.height,r:Math.random()*Math.PI*2};
+				for (j=0;j<this.stack.length && i>0;j++){
+					if (!this.stack[j]) {
+						this.stack[j] = new Bacteria(spawnpoint.x() * spawnpoint.mx, spawnpoint.y() * spawnpoint.my,spawnpoint.r,this,j);
+						if (momentum) this.stack[j].applyForce(momentum.x,momentum.y,momentum.r) 
+						i--;
+					}
+				}
+				if (i>0) {this.vacancy = false} else {
+					var sndi = new Audio("pop.wav");
+					sndi.play();
+				};
+			}
+			Colony.prototype.cycle = function(){
+				for (i=0; i<this.stack.length;i++){
+					if (this.stack[i]) {
+						this.stack[i].live();
+						if (this.stack[i].age >= this.stack[i].ageMax) {this.stack[i].die()} else {this.stack[i].age++; this.stack[i].hungerTimer ++;}
+					}
+				}
+			}
+			
+			var Bacteria = function(x,y,r,colony,index){
+				this.position = {x:x,y:y,r:0};
+				this.velocity = {x:0,y:0,r:0};
+				this.size = {x:16,y:16};
+				this.activity = .1;
+				this.speed = 2 * (1 + 2*Math.random());
+				this.birthRate = .00005;
+				this.image = new Image();
+				this.image.src = 'sprite'+colony.id+'.gif';
+				this.colony = colony;
+				this.age = 0;
+				this.ageMax = 3000 + Math.random()*4000;
+				this.index = index;
+				this.animation = {frames:4,firstFrame:0,slowFactor:2,frameStep:0};
+				this.animation.frameSteps = this.animation.frames * this.animation.slowFactor;
+				this.mode = 0;
+				this.heading = this.position;
+				this.sight = 100;
+				this.hungerTimer = 0;
+				
+			}
+			Bacteria.prototype.applyForce = function(x,y,r){
+				this.velocity.x += x;
+				this.velocity.y += y;
+				this.velocity.r += r;
+			}
+			Bacteria.prototype.draw = function(){
+
+				this.position.x += this.position.x > canvas.width - this.size.x ? Math.abs(this.velocity.x)*-1 : this.position.x < this.size.x ? Math.abs(this.velocity.x) : this.velocity.x;
+				this.position.y += this.position.y > canvas.height - this.size.y ? Math.abs(this.velocity.y)*-1 : this.position.y < this.size.y ? Math.abs(this.velocity.y) : this.velocity.y;
+				this.position.r += this.velocity.r;
+
+				this.velocity.x *= .98;
+				this.velocity.y *= .98;
+				this.velocity.r *= .98;
+
+				ctx.save();
+				ctx.translate(this.position.x,this.position.y);
+				ctx.rotate(this.position.r);
+				ctx.drawImage(this.image,(Math.floor(this.animation.frameStep / this.animation.slowFactor)+this.animation.firstFrame)*this.size.x,0,this.size.x,this.size.y,-this.size.x/2,-this.size.y/2,this.size.x,this.size.y);
+				ctx.restore();
+				this.animation.frameStep = this.animation.frameStep < this.animation.frameSteps - 1 ? this.animation.frameStep + 1 : 0;
+			}
+			Bacteria.prototype.live = function(){
+
+				var enemy = this.colony.id == 1 ? c2 : c1;
+				this.checkSight(f1,enemy);
+
+				if (this.mode == 0){
+					this.wander();
+				} else if (this.mode == 1){
+					if (this.position.x < this.heading.x + this.size.x && this.position.x > this.heading.x - this.size.x && this.position.y < this.heading.y + this.size.y && this.position.y > this.heading.y - this.size.y){
+						this.mode = 0;
+					}
+					this.reach(this.heading.x,this.heading.y);
+
+				} else if (this.mode == 2){
+					var delta = {x:this.heading.x - this.position.x,y:this.heading.y - this.position.y}
+					if (delta.x*delta.x + delta.y*delta.y > this.sight*this.sight){
+						this.mode = 0;
+						this.wander();
+					} else this.runAway(this.heading.x,this.heading.y);
+					
+				} 
+
+				
+				
+			}
+			Bacteria.prototype.wander = function(){
+				if (Math.random() < this.activity){
+					this.applyForce((Math.random()*2-1)*this.speed*.05, (Math.random()*2-1)*this.speed*.05, (Math.random()*2-1)*Math.PI*.01);
+				}
+				if (Math.random() < this.birthRate && this.colony.vacancy){
+					this.divide();
+				}
+				this.draw();
+			}
+			Bacteria.prototype.reach = function(x,y){
+				this.position.r = goodAngle(this.position.r);
+				var vector = {x: x-this.position.x, y:y-this.position.y};
+				var magnitude = Math.sqrt(vector.x*vector.x + vector.y*vector.y);
+				vector.r = Math.atan2(vector.y,vector.x);
+				vector.x = magnitude > 0 ? .005 * this.speed * vector.x/magnitude : 0;
+				vector.y = magnitude > 0 ? .005 * this.speed * vector.y/magnitude : 0;
+
+				var substractor = Math.PI + this.position.r,
+					distanceBa	= goodAngle(vector.r - substractor) - (this.position.r - substractor);
+				if (distanceBa < Math.PI){
+					vector.r = .002 //* distanceBa;
+				} else {
+					vector.r = -.002 //* (Math.PI * 2 - distanceBa);
+				}
+
+				this.applyForce(vector.x,vector.y,vector.r);
+				this.draw();
+
+			}
+			Bacteria.prototype.runAway = function(x,y){
+				this.position.r = goodAngle(this.position.r);
+				var vector = {x: this.position.x-x, y:this.position.y-y};
+				var magnitude = Math.sqrt(vector.x*vector.x + vector.y*vector.y);
+				vector.r = Math.atan2(vector.y,vector.x);
+				vector.x = magnitude > 0 ? .01 * this.speed * vector.x/magnitude : 0;
+				vector.y = magnitude > 0 ? .01 * this.speed * vector.y/magnitude : 0;
+
+				var substractor = Math.PI + this.position.r,
+					distanceBa	= goodAngle(vector.r - substractor) - (this.position.r - substractor);
+				if (distanceBa < Math.PI){
+					vector.r = .002 //* distanceBa;
+				} else {
+					vector.r = -.002 //* (Math.PI * 2 - distanceBa);
+				}
+
+				this.applyForce(vector.x,vector.y,vector.r);
+				this.draw();
+
+			}
+
+			Bacteria.prototype.divide = function(){
+				var force = {x:Math.random()*2,y:Math.random()*2,r:(Math.random() - .5)*Math.PI/3};
+				this.applyForce(force.x,force.y,force.r);
+				this.colony.spawn(1,this.position.x,this.position.y,this.position.r,{x:-force.x,y:-force.y,r:-force.r});
+				
+			}
+			Bacteria.prototype.die = function(){
+				f1.spawn(10,this.position.x,this.position.y);
+				this.colony.stack[this.index] = false;
+				this.colony.vacancy = true;
+			}
+
+			Bacteria.prototype.checkSight = function(foods,enemies){
+				if (this.hungerTimer > 250 && foods){
+					var minDSquared = {value:this.sight*this.sight + 1,index:-1};
+					for (f=0;f<foods.stack.length;f++){
+							var dSquared = Math.pow(foods.stack[f].position.x - this.position.x,2) + Math.pow(foods.stack[f].position.y - this.position.y,2);
+							if (dSquared < Math.pow(this.sight,2)){
+								minDSquared = dSquared < minDSquared.value ? {value:dSquared,index:f} : minDSquared;
+							}
+					}
+					if (minDSquared.index >= 0){
+						if (minDSquared.value < 25){
+								this.mode = 0;
+								this.ageMax += 500;
+								this.hungerTimer = 0;
+								this.divide();
+								foods.stack.splice(minDSquared.index,1);
+
+							} else {
+								this.mode = 1;
+								this.heading = {x:foods.stack[minDSquared.index].position.x, y:foods.stack[minDSquared.index].position.y}
+							}
+					}
+				}
+				if (enemies){
+					var minDSquared = {value:this.sight*this.sight + 1,index:-1};
+					for (en=0;en<enemies.stack.length;en++){
+						if (enemies.stack[en]){
+							var dSquared = Math.pow(enemies.stack[en].position.x - this.position.x,2) + Math.pow(enemies.stack[en].position.y - this.position.y,2);
+							if (dSquared < Math.pow(this.sight,2)){
+								minDSquared = dSquared < minDSquared.value ? {value:dSquared,index:en} : minDSquared;
+							}
+						}
+					}
+					if (minDSquared.index >= 0){
+						this.mode = 2;
+						this.heading = {x:enemies.stack[minDSquared.index].position.x, y:enemies.stack[minDSquared.index].position.y}
+					}
+				}
+			}
+
+			var Foods = function(){
+				this.max = 100;
+				this.size = 2;
+				this.stack = [];
+			}
+
+			var Food = function(x,y){
+				this.position = {x:x,y:y};
+			}
+
+			Foods.prototype.exist = function(){
+				for (i=0;i<this.stack.length;i++){
+					this.stack[i].position.x += (Math.random() - .5);
+					this.stack[i].position.y += (Math.random() - .5);
+					ctx.fillStyle = "rgba(0,0,0,.3)" //"#a1bfb3";
+					ctx.fillRect(this.stack[i].position.x,this.stack[i].position.y,this.size,this.size);
+				}
+			}
+
+			Foods.prototype.spawn = function(count,x,y){
+				for (c=0;c<count;c++){
+					sx = x ? x : Math.random()*(canvas.width-40)+20;
+					sy = y ? y : Math.random()*(canvas.height-40)+20;
+					if (this.stack.length < this.max){
+						this.stack.push(new Food(sx,sy));
+					} 
+				}
+			}
+
+			var c1 = new Colony(1);
+			c1.spawn(5);
+
+			var c2 = new Colony(2);
+			c2.spawn(5);
+			
+			var f1 = new Foods();
+			f1.spawn(100);
+
+			function render(){
+				//ctx.clearRect(0,0,canvas.width,canvas.height);
+				ctx.fillStyle = "#d1efe3";
+				ctx.fillRect(0,0,canvas.width,canvas.height);
+				f1.exist();
+				c1.cycle();
+				c2.cycle();
+				requestAnimationFrame(render);
+			}
+
+			render();
+
+			window.onclick = function(){
+				var heading = {x:0,y:0,letsGo: false};
+				if (event.x > ctx.canvas.offsetLeft && event.x < ctx.canvas.offsetLeft + ctx.canvas.offsetWidth && event.y > ctx.canvas.offsetTop && event.y < ctx.canvas.offsetTop + ctx.canvas.offsetHeight){
+					heading.letsGo = true;
+					heading.x = event.x - ctx.canvas.offsetLeft;
+					heading.y = event.y - ctx.canvas.offsetTop;
+				}
+				if (heading.letsGo){
+					f1.spawn(1,heading.x,heading.y);	
+				}
+
+			}
+
+		</script>
+</body>
+</html>

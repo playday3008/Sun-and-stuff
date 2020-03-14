@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Медузы и жопы</title>
+        <link href="https://fonts.googleapis.com/css?family=PT+Serif" rel="stylesheet">
+        <script src="mobile/stuff/likely.js"></script>
+        <link rel="stylesheet" href="mobile/stuff/stuff.css">
+        <link rel="stylesheet" href="mobile/stuff/likely.css">
+        <meta property="og:image" content="stuff/cover.jpg" /> 
+</head>
+<body>
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+    (function (d, w, c) {
+        (w[c] = w[c] || []).push(function() {
+            try {
+                w.yaCounter24216865 = new Ya.Metrika({
+                    id:24216865,
+                    clickmap:true,
+                    trackLinks:true,
+                    accurateTrackBounce:true,
+                    webvisor:true
+                });
+            } catch(e) { }
+        });
+
+        var n = d.getElementsByTagName("script")[0],
+            s = d.createElement("script"),
+            f = function () { n.parentNode.insertBefore(s, n); };
+        s.type = "text/javascript";
+        s.async = true;
+        s.src = "https://mc.yandex.ru/metrika/watch.js";
+
+        if (w.opera == "[object Opera]") {
+            d.addEventListener("DOMContentLoaded", f, false);
+        } else { f(); }
+    })(document, window, "yandex_metrika_callbacks");
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/24216865" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->
+<div class = "mintro">
+    <span class = "header">МЕДУЗЫ&nbsp;И&nbsp;ЖОПЫ</span>
+    <div class = "mback"><a href = "../about.html">Версия для компа</a></div>
+</div>
+
+<h1 class="mp">Комплексные числа</h1>
+<p class="mp">В&nbsp;какой-то момент математики <nobr>что-то вычисляли</nobr> и&nbsp;столкнулись с&nbsp;такой ситуацией, когда обыкновенными числами было невозможно сделать их&nbsp;математические дела.</p>
+<p class="mp">Например, найти верный корень в&nbsp;уравнении&nbsp;снизу.</p>
+<img class = "mimage" src = "mobile/stuff/sqrt1.png" />
+
+<p class="mp">Тогда они придумали несуществующее число, которым ничего нельзя посчитать, но&nbsp;которое помогло им решить уравнение. Это число <i>i</i>, равное корню из&nbsp;минус&nbsp;одного. Совершенно абстрактная, но&nbsp;полезная ерунда.</p>
+<img class = "mimage" src = "mobile/stuff/sqrt2.png" />
+
+<p class="mp">Появились комплексные числа, у&nbsp;которых кроме нормальной, понятной части, появилась еще непонятная, где есть это&nbsp;<i>i</i>. Понятная часть называется вещественной, а&nbsp;непонятная&nbsp;— мнимой.</p>
+<img class = "mimage" src = "mobile/stuff/sqrt3.png" />
+
+<h1 class = "mp">Комплексная плоскость</h1>
+<p class = "mp">Раз уж&nbsp;комплексные числа состоят из&nbsp;двух частей (вещественной и&nbsp;мнимой) и&nbsp;координаты пикселей на&nbsp;экране тоже состоят из&nbsp;двух частей (сколько до&nbsp;него по&nbsp;горизонтали и&nbsp;сколько по&nbsp;вертикали), то&nbsp;можно нарисовать на&nbsp;экране карту комплексных чисел. Или, по-другому, комплексную&nbsp;плоскость.</p>
+<p class = "mp">На&nbsp;этой комплексной плоскости можно отметить любое комплексное число, например –1,3&nbsp;+&nbsp;0,8<i>i</i></p>
+<img class = "mimage" src = "mobile/stuff/axis1.png" />
+
+<h1 class = "mp">Множество Мандельброта</h1>
+<p class = "mp">Множество Мандельброта — это&nbsp;группа комплексных чисел, которые проходят определенный фейс-контроль.</p>
+<p class = "mp">Правила такие: берем ноль, умножаем его&nbsp;на&nbsp;самого себя и&nbsp;прибавляем к&nbsp;комплексному числу, которое хотим проверить. Затем полученный результат умножаем на&nbsp;самого себя и&nbsp;опять прибавляем к&nbsp;нашему числу. Затем снова и&nbsp;снова, опять и&nbsp;опять. И&nbsp;так до&nbsp;бесконечности. С&nbsp;каждым подходом получается новое комплексное число, которое либо уходит все&nbsp;дальше и&nbsp;дальше от&nbsp;центра, либо&nbsp;нет.</p>
+<p class = "mp">Если оно сваливает в&nbsp;бесконечность&nbsp;— значит первоначальное число не&nbsp;прошло фейс-контроль. Если остаётся&nbsp;— добро пожаловать в&nbsp;множество Мандельброта.</p>
+<p class = "mp">Как&nbsp;можно увидеть, число –1,3&nbsp;+&nbsp;0,8<i>i</i> со&nbsp;второго подхода отправилось в&nbsp;закат, а&nbsp;вот -0,1&nbsp;+&nbsp;0,1<i>i</i> никуда не&nbsp;делось, сколько мы&nbsp;его&nbsp;ни&nbsp;дёргали.</p>
+<p class = "mp">Проверим каждый пиксель на&nbsp;экране:</p>
+<img class = "mimage" src = "mobile/stuff/axis.png" />
+
+<p class = "mp">Получается что-то, похожее на&nbsp;жопу (по-научному «кардиола»). То,&nbsp;что закрашено белым цветом, входит в&nbsp;множество Мандельброта. Всё&nbsp;остальное&nbsp;— нет.</p>
+<img class = "mimage" src = "mobile/stuff/pure.png" />
+
+<p class = "mp">Если приблизить картинку, то&nbsp;мы&nbsp;увидим всё новые и&nbsp;новые детали на&nbsp;границах жопы. Снизу&nbsp;— часть предыдущей картинки. Она увеличена в&nbsp;13&nbsp;раз. Фишка в&nbsp;том, что плоскость можно приближать сколько угодно, всегда будет проявляться что-то новое, хотя и&nbsp;похожее на&nbsp;предыдущее. Такая&nbsp;штука&nbsp;называется&nbsp;фракталом.</p>
+<img class = "mimage" src = "mobile/stuff/purex13.png" />
+
+<p class = "mp">Какая-то область фрактала, увеличенная в&nbsp;210&nbsp;000 раз. Видны только несколько маленьких жоп. Можно приближать и&nbsp;дальше, но&nbsp;всё&nbsp;равно мы получим круги и&nbsp;новые жопы. Не&nbsp;очень&nbsp;впечатляет.</p>
+<img class = "mimage" src = "mobile/stuff/purex210000.png" />
+
+<h1 class = "mp" style = "margin-top:120px">Волшебство</h1>
+<p class = "mp">Вспомним, что картинка рисуется так: мы&nbsp;проверяем каждое комплексное число много-много раз, пока не&nbsp;поймем, проходит ли&nbsp;оно фейс-контроль. Дополним картинку: чем быстрее число уходит в&nbsp;бесконечность, тем темнее цвет. Мгновенно улетело в&nbsp;пустоту? Почти черный. Едва-едва ползёт? Почти белый. Вот&nbsp;что&nbsp;получается:</p>
+<img class = "mimage" src = "mobile/stuff/bwx210000.png" />
+
+<p class = "mp">Офигеть, правда?</p>
+<p class = "mp">Почти все точки на&nbsp;экране не&nbsp;входят в&nbsp;множество Мандельброта, но&nbsp;все сваливают от&nbsp;него с&nbsp;разной скоростью.<br /><img width = "185" style = "margin-top: 36px" src= "mobile/stuff/bw-gamma.png" /></p>
+<p class = "mp">Можно раскрасить картинку не&nbsp;чёрным&nbsp;и&nbsp;белым, а&nbsp;вот&nbsp;так:<br /><img width = "185" style = "margin-top: 36px" src= "mobile/stuff/fire-gamma.png" /></p>
+<img class = "mimage" src = "mobile/stuff/firex210000.jpg" />
+
+<h1 class = "mp">Рекурсивные палитры</h1>
+<p class = "mp">Есть еще один крутой способ раскрасить картинку. Можно взять один набор цветов и&nbsp;залить не&nbsp;всё&nbsp;сразу, а&nbsp;раскрасить только 50% самых быстросваливающих. От&nbsp;оставшихся взять снова 50% и&nbsp;раскрасить. Потом еще 50% и&nbsp;так&nbsp;далее. Вот что получится, если взять только черный и&nbsp;белый цвета:<br /><img width = "185" style = "margin-top: 36px" src= "mobile/stuff/bwr-gamma.png" /></p>
+<img class = "mimage" src = "mobile/stuff/bwrx210000.jpg" />
+
+<p class = "mp">Рисунок стал контрастнее и&nbsp;интереснее&nbsp;в&nbsp;деталях.</p>
+<p class = "mp">Осталось добавить цвет.</p>
+<img class = "mimage" src = "mobile/stuff/royalrx210000.jpg" />
+
+<p class = "msub">Чёрная медуза.</p>
+<img class = "mimage" src = "mobile/stuff/cycloneSR.jpg" />
+<p class = "msub" style = "margin-left: 100px">Циклон.</p>
+<img class = "mimage" src = "mobile/stuff/string.jpg" />
+<p class = "msub">Медузы выползают из&nbsp;трещины.</p>
+
+<img class = "mimage" src = "mobile/stuff/julia.jpg" />
+<p class = "msub">Остров Жюлиа. Это&nbsp;официальное название. Филиал множества Жюлиа во&nbsp;множестве Мандельброта.</p>
+
+<img class = "mimage" src = "mobile/stuff/assking.jpg" />
+<p class = "msub" style = "margin-left: 100px">В&nbsp;центре острова бесконечное число оцеплений из&nbsp;циклонов охраняет короля жоп.</p>
+
+<img class = "mimage" src = "mobile/stuff/mace.jpg" />
+<p class = "msub" style = "margin-top: 120px">У больших циклонов в&nbsp;оцеплении есть свой шарик на&nbsp;ниточке.</p>
+
+<img class = "mimage" src = "mobile/stuff/sting.jpg" />
+<p class = "msub">Слои охраны около жала короля жоп. За&nbsp;каждым оцеплением своя атмосфера, которая просачивается между циклонами.</p>
+
+<img class = "mimage" src = "mobile/stuff/growth.jpg" />
+<p class = "msub">Жопа без охраны поросла двузубчатой&nbsp;электрической&nbsp;плесенью.</p>
+
+<img class = "mimage" src = "mobile/stuff/killer.jpg" />
+<p class = "msub">Хищная жопа-убийца раскинула ядовитые&nbsp;лапы в&nbsp;ожидании жертвы.</p>
+
+<img class = "mimage" src = "mobile/stuff/forks.jpg" />
+<p class = "msub" >Долина вилок.</p>
+
+<img class = "mimage" src = "mobile/stuff/forks2.jpg" />
+<p class = "msub">Долина полувилок.</p>
+
+<img class = "mimage" src = "mobile/stuff/forks3.jpg" />
+<p class = "msub">Долина супервилок.</p>
+
+<img class = "mimage" src = "mobile/stuff/walle.jpg" />
+<p class = "msub">Волли.</p>
+
+<img class = "mimage" src = "mobile/stuff/moon.jpg" />
+<p class = "msub">Луна.</p>
+
+<img class = "mimage" src = "mobile/stuff/sun.jpg" />
+<p class = "msub">Солнце.</p>
+
+<img class = "mimage" src = "mobile/stuff/storm.jpg" />
+<p class = "msub">Тайфун.</p>
+
+<h1 class = "mp">Горящий корабль</h1>
+<p class = "mp">Если чуть-чуть поменять правила <nobr>на фейс-контроле</nobr>, и&nbsp;перед тем, как&nbsp;что-то умножать на&nbsp;себя, убрать минусы из&nbsp;вещественной и&nbsp;мнимой части, то&nbsp;получится другой фрактал.</p>
+<img class = "mimage" src = "mobile/stuff/ship.jpg" />
+
+<img class = "mimage" src = "mobile/stuff/ship2.jpg" />
+<p class = "msub">Флот горит.</p>
+
+<img class = "mimage" src = "mobile/stuff/ship3.jpg" />
+<p class = "msub">Падающий собор.</p>
+
+<img class = "mimage" src = "mobile/stuff/ship4.jpg" />
+<p class = "msub">Небоскрёбы.</p>
+
+<img class = "mimage" src = "mobile/stuff/ship5.jpg" />
+<p class = "msub">Вода под&nbsp;килем флагмана.</p>
+
+<img class = "mimage" src = "mobile/stuff/ocean.jpg" />
+<p class = "msub">Океан.</p>
+
+
+<p class = "mp">Все&nbsp;картинки, кроме самых первых, сгенерированы <a href = "../index.html">в&nbsp;браузере</a>.</p>
+<p class = "mp"><img style="display: inline-block; margin: 0 0 -8px -38px" src="mobile/stuff/c.png" width="32" height="32" />&nbsp;2016&nbsp;Sunandstuff<br/><a href = "mailto:jesterpost@gmail.com">jesterpost@gmail.com</a></p>
+<div class="likely" style="margin-left:120px">
+<div class="twitter">Я не умею</div>
+<div class="facebook">Копировать</div>
+<div class="vkontakte">И вставлять</div>
+<div class="telegram">Ссылки</div>
+</div>
+<p class = "credits mp msmall">Спасибо Пьеру Фату, Бенуа Мандельброту и Отто Рёслеру за алгоритмы; Википедии, Стигену Ларсену и сайту Микрософта (там реально есть раздел про визуализацию множества) за понимание этих алгоритмов; Линасу Вептасу за алгоритм вычисления скорости расхождения рядов (я все равно не врубился, как это работает, потому что плохо учил в школе логарифмы); а также фоточке раскалённой железяки из интернета за&nbsp;палитру&nbsp;«Forest fire».</p>
+
+</script>
+</body>
+</html>

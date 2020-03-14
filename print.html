@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>CMYK</title>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%;}
+            .emperror {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .vessel {
+                width: 100%;
+                height: 100%;
+            }
+            .setup {
+                position: absolute;
+                bottom: 2%;
+                right: 2%;
+                padding: 1%;
+                background: #fff8;
+                border-radius: 4px;
+            }
+        </style>
+</head>
+<body>
+    <div class="setup">
+        <p><input class="override" type="file" /></p>
+        <p><input class="printerType" name="printerType" value="shitjet" type="radio" checked><label>ShitJet 2000</label></p>
+        <p><input class="printerType" name="printerType" value="generic" type="radio"><label>Generic X</label></p>
+        <p><input class="printerType" name="printerType" value="epsilon" type="radio"><label>Epsilon Premium II</label></p>
+        <p><input class="printerType" name="printerType" value="royal" type="radio"><label>Royal-Luxury Signature RS</label></p>
+        <p><button class="execute">Print</button></p>
+    </div>
+    <div class="emperror">
+        <canvas class="vessel"></canvas>
+    </div>
+<script>
+
+class Printer {
+
+    constructor(canvas, radios, upload, button){
+
+        this.dotScale = 4;
+        this.dotWeight = 1;
+        this.jitter = .14;
+        this.printerSlowness = 5e2;
+        this.channelBias = 2;
+        this.kGain = .7, this.cGain = 1, this.mGain = 1, this.yGain = .9;
+        this.kPaint = '#000', this.cPaint = '#0ff', this.mPaint = '#f0f', this.yPaint = '#ff0';
+
+        this.ratio = window.devicePixelRatio;
+        this.canvas = canvas;
+        this.canvas.width = this.canvas.clientWidth * this.ratio;
+        this.canvas.height = this.canvas.clientHeight * this.ratio;
+        this.ctx = this.canvas.getContext('2d');
+        this.interval = false;
+
+        this.upload = upload;
+        this.choices = radios;
+        this.button = button;
+        this.button.onclick = ()=>{
+            for (let i = 0; i < this.choices.length; i++){
+                if (this.choices[i].checked){
+                    this.pickPrinter(this.choices[i].value);
+                    break;
+                }
+            }
+            this.processImage(this.upload.files[0]);
+        }
+
+        this.getImageFile('portugal.jpg');
+
+    }
+
+    pickPrinter(name){
+
+        let printers = {
+            shitjet: {
+                dotScale: 32
+            },
+            generic: {
+                dotScale: 8
+            },
+            epsilon: {
+                dotScale: 2
+            },
+            royal: {
+                dotScale: 1
+            }
+        }
+        if (printers[name]){
+            for (let i in printers[name]){
+                this[i] = printers[name][i];
+            }
+        }
+    }
+
+    getImageFile(url){
+
+        fetch(url).then((res)=>{res.blob().then((data)=>{
+            this.processImage(data);
+        })});
+
+    }
+
+    processImage(blob){
+
+        if (this.interval) clearInterval(this.interval);
+
+        let id;
+        let url = URL.createObjectURL(blob);
+        let img = new Image();
+        img.src = url;
+
+        img.onload = ()=>{
+
+            let w, h;
+            if (img.width / this.canvas.width < img.height / this.canvas.height){
+                w = Math.floor(img.width / img.height * this.canvas.height / this.dotScale);
+                h = Math.floor(this.canvas.height / this.dotScale);
+            } else {
+                w = Math.floor(this.canvas.width / this.dotScale);
+                h = Math.floor(img.height / img.width * this.canvas.width / this.dotScale);
+            }
+
+            this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+            this.ctx.drawImage(img, 0, 0, w, h);
+            URL.revokeObjectURL(url);
+            id = this.ctx.getImageData(0, 0, w, h);
+
+            let cmyk = [];
+            
+            for (let i = 0; i < id.data.length; i+=4){
+
+                let p = id.data;
+                let c, m, y, k;
+
+                if (p[i] === 0 && p[i+1] === 0 && p[i+2] === 0) {
+                    c = m = y = 0;
+                    k = 1;
+                } else {
+                    c = 1 - (p[i] / 255);
+                    m = 1 - (p[i+1] / 255);
+                    y = 1 - (p[i+2] / 255);
+
+                    let min = Math.min(c,m,y);
+                    c = (c - min) / (1 - min);
+                    m = (m - min) / (1 - min);
+                    y = (y - min) / (1 - min);
+                    k = min;
+                }
+
+                cmyk.push({c: c, m: m, y: y, k: k});
+
+            }
+
+            this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+            this.ctx.globalCompositeOperation = 'multiply';
+
+            this.printLayer(cmyk, 'c', w, ()=>{
+                this.printLayer(cmyk, 'm', w, ()=>{
+                    this.printLayer(cmyk, 'y', w, ()=>{
+                        this.printLayer(cmyk, 'k', w);
+                    });
+                });
+            }); 
+
+        }
+
+    }
+
+    printLayer(cmyk, channel, w, onFinish){
+
+        let i = 0;
+        this.interval = setInterval(()=>{
+            if (i < cmyk.length){
+                for (let n = 0; n < cmyk.length / this.printerSlowness; n++){
+                    let channels = {};
+                    channels[channel] = true
+                    if (i < cmyk.length) this.drawDot(cmyk, i, w, channels);
+                    i++;  
+                }
+                
+            } else {
+                clearInterval(this.interval);
+                if (onFinish) onFinish();
+            }
+        },0);
+    }
+
+    drawDot(cmyk, i, w, channels){
+        let rng = ()=>Math.random()*2 - 1;
+
+        let cx = this.dotScale * (i % w);
+        let cy = this.dotScale * Math.floor(i / w);
+
+        let r = this.dotWeight * this.dotScale;
+        let j = this.jitter * r;
+        let rc = r * cmyk[i].c;
+        let rm = r * cmyk[i].m;
+        let ry = r * cmyk[i].y;
+        let rk = r * cmyk[i].k;
+        let bias = r / this.channelBias;
+
+        if (channels.c === true){
+            this.ctx.fillStyle = this.cPaint;
+            this.ctx.beginPath();
+            this.ctx.arc(cx + rng() * j, cy + rng() * j, rc * this.cGain, 0, Math.PI * 2);
+            this.ctx.closePath();
+            this.ctx.fill();
+        }
+        if (channels.m === true){
+            this.ctx.fillStyle = this.mPaint;
+            this.ctx.beginPath();
+            this.ctx.arc(cx + bias + rng() * j, cy + rng() * j, rm * this.mGain, 0, Math.PI * 2);
+            this.ctx.closePath();
+            this.ctx.fill();
+        }
+        if (channels.y === true){
+            this.ctx.fillStyle = this.yPaint;
+            this.ctx.beginPath();
+            this.ctx.arc(cx + rng() * j, cy + bias + rng() * j, ry * this.yGain, 0, Math.PI * 2);
+            this.ctx.closePath();
+            this.ctx.fill();
+        }
+        if (channels.k === true){
+            this.ctx.fillStyle = this.kPaint;
+            this.ctx.beginPath();
+            this.ctx.arc(cx + bias + rng() * j, cy + bias + rng() * j, rk * this.kGain, 0, Math.PI * 2);
+            this.ctx.closePath();
+            this.ctx.fill();
+        }
+    }
+
+}
+
+let printer = new Printer(document.querySelector('.vessel'), document.querySelectorAll('.printerType'), document.querySelector('.override'), document.querySelector('.execute'));
+
+// let dotScale = 4;
+// let dotWeight = 1;
+// let jitter = .14;
+// let printerSlowness = 5e2;
+// let channelBias = 2;
+// let kGain = .7, cGain = 1, mGain = 1, yGain = .9;
+// let kPaint = '#000', cPaint = '#0ff', mPaint = '#f0f', yPaint = '#ff0';
+
+// let ratio = window.devicePixelRatio;
+// let canvas = document.querySelector('.vessel');
+// canvas.width = canvas.clientWidth * ratio;
+// canvas.height = canvas.clientHeight * ratio;
+// let ctx = canvas.getContext('2d');
+// let interval = false;
+
+// let upload = document.querySelector('.override');
+// upload.onchange = ()=>{
+//     let choices = document.querySelectorAll('.printerType');
+//     for (let i = 0; i < choices.length; i++){
+//         if (choices[i].checked){
+//             pickPrinter(choices[i].name);
+//             break;
+//         }
+//     }
+//     processImage(upload.files[0]);
+// }
+
+// getImageFile('bird.jpg');
+
+
+// function pickPrinter(name){
+
+//     let printers = {
+//         shitjet: {
+//             dotScale: 32
+//         },
+//         painter: {
+//             dotScale: 8
+//         },
+//         epsilon: {
+//             dotScale: 2
+//         }
+//     }
+
+//     if (printers[name]){
+//         for (let i in printers[name]){
+//             eval(i) = printers[name][i];
+//         }
+//     }
+
+// }
+
+
+// function getImageFile(url){
+
+//     fetch(url).then((res)=>{res.blob().then((data)=>{
+//         processImage(data);
+//     })});
+
+// }
+
+// function processImage(blob){
+
+//     if (interval) clearInterval(interval);
+
+//     let id;
+//     let url = URL.createObjectURL(blob);
+//     let img = new Image();
+//     img.src = url;
+
+//     img.onload = ()=>{
+
+//         let w, h;
+//         if (img.width / canvas.width < img.height / canvas.height){
+//             w = Math.floor(img.width / img.height * canvas.height / dotScale);
+//             h = Math.floor(canvas.height / dotScale);
+//         } else {
+//             w = Math.floor(canvas.width / dotScale);
+//             h = Math.floor(img.height / img.width * canvas.width / dotScale);
+//         }
+
+//         ctx.clearRect(0,0,canvas.width,canvas.height);
+//         ctx.drawImage(img, 0, 0, w, h);
+//         URL.revokeObjectURL(url);
+//         id = ctx.getImageData(0, 0, w, h);
+
+//         let cmyk = [];
+        
+//         for (let i = 0; i < id.data.length; i+=4){
+
+//             let p = id.data;
+//             let c, m, y, k;
+
+//             if (p[i] === 0 && p[i+1] === 0 && p[i+2] === 0) {
+//                 c = m = y = 0;
+//                 k = 1;
+//             } else {
+//                 c = 1 - (p[i] / 255);
+//                 m = 1 - (p[i+1] / 255);
+//                 y = 1 - (p[i+2] / 255);
+
+//                 let min = Math.min(c,m,y);
+//                 c = (c - min) / (1 - min);
+//                 m = (m - min) / (1 - min);
+//                 y = (y - min) / (1 - min);
+//                 k = min;
+//             }
+
+//             cmyk.push({c: c, m: m, y: y, k: k});
+
+//         }
+
+//         ctx.clearRect(0,0,canvas.width,canvas.height);
+//         ctx.globalCompositeOperation = 'multiply';
+
+//         printLayer(cmyk, 'c', w, ()=>{
+//             printLayer(cmyk, 'm', w, ()=>{
+//                 printLayer(cmyk, 'y', w, ()=>{
+//                     printLayer(cmyk, 'k', w);
+//                 });
+//             });
+//         }); 
+
+//     }
+
+// }
+
+// function printLayer(cmyk, channel, w, onFinish){
+
+//     let i = 0;
+//     interval = setInterval(()=>{
+//         if (i < cmyk.length){
+//             for (let n = 0; n < cmyk.length / printerSlowness; n++){
+//                 let channels = {};
+//                 channels[channel] = true
+//                 if (i < cmyk.length) drawDot(cmyk, i, w, channels);
+//                 i++;  
+//             }
+            
+//         } else {
+//             clearInterval(interval);
+//             if (onFinish) onFinish();
+//         }
+//     },0);
+
+// }
+
+// function drawDot(cmyk, i, w, channels){
+//     let rng = ()=>Math.random()*2 - 1;
+
+//     let cx = dotScale * (i % w);
+//     let cy = dotScale * Math.floor(i / w);
+
+//     let r = dotWeight * dotScale;
+//     let j = jitter * r;
+//     let rc = r * cmyk[i].c;
+//     let rm = r * cmyk[i].m;
+//     let ry = r * cmyk[i].y;
+//     let rk = r * cmyk[i].k;
+//     let bias = r/channelBias;
+
+//     if (channels.c === true){
+//     ctx.fillStyle = cPaint;
+//     ctx.beginPath();
+//     ctx.arc(cx + rng() * j, cy + rng() * j, rc * cGain, 0, Math.PI * 2);
+//     ctx.closePath();
+//     ctx.fill();
+//     }
+//     if (channels.m === true){
+//     ctx.fillStyle = mPaint;
+//     ctx.beginPath();
+//     ctx.arc(cx + bias + rng() * j, cy + rng() * j, rm * mGain, 0, Math.PI * 2);
+//     ctx.closePath();
+//     ctx.fill();
+//     }
+//     if (channels.y === true){
+//     ctx.fillStyle = yPaint;
+//     ctx.beginPath();
+//     ctx.arc(cx + rng() * j, cy + bias + rng() * j, ry * yGain, 0, Math.PI * 2);
+//     ctx.closePath();
+//     ctx.fill();
+//     }
+//     if (channels.k === true){
+//     ctx.fillStyle = kPaint;
+//     ctx.beginPath();
+//     ctx.arc(cx + bias + rng() * j, cy + bias + rng() * j, rk * kGain, 0, Math.PI * 2);
+//     ctx.closePath();
+//     ctx.fill();
+//     }
+// }
+
+</script>
+</body>
+</html>

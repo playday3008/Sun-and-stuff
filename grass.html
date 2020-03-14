@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html>
+<head>
+		<script type="text/javascript" src="grass/service.js"></script>
+        <meta charset="utf-8" />
+        <title>Interpolation grass</title>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; font-family: 'Open Sans', sans-serif; min-height: 700px; overflow: hidden; min-width: 100px}
+          	#thebox {position: absolute; top: 50%; margin-top: -300px; left: 50%; margin-left: -400px; border: 1px dotted #aaa;}
+        </style>
+</head>
+
+<body>
+<canvas  id='thebox' width = "800"; height = "600"; >Чето говно!</canvas>
+<input type="button" value="Pause" onclick="core.xTime = 0" />
+<input type="button" value="x1" onclick="core.xTime = 1" />
+<input type="button" value="x10" onclick="core.xTime = 10" />
+<input type="button" value="x100" onclick="core.xTime = 100" /><br />
+		<script>		
+			var canvas 		= document.getElementById("thebox"),
+			    ctx    		= canvas.getContext('2d');
+
+			canvas.width = 800;
+			canvas.height = 600;
+
+			var core = {
+				lt : Date.now(),
+				dt : 0,
+				tt : 0,
+				xTime : 1,
+				maxClock : 250,
+				clock : 0,
+				seed: 48,
+				dayTime : 160000,
+				dayPeriod : 480000,
+				gll : 0,
+				mouse : {x:0,y:0},
+				viewPort : false,
+				chunkSize : 400,
+				cellSize : 20,
+				bias : {x:0,y:0},
+				chunks : [],
+				items : [],
+				subjects : [],
+				chunksQueue : [],
+				resources : [],
+				loaded : false,
+				hoverCell : false,
+				hero : false,
+				waterLevel : .6,
+				gll:0,
+				dayTime : 500000,
+				dayPeriod : 960000,
+				darkness : false,
+				renderFunctions : [
+					function(){console.log('loading')},
+					function(){
+						var now = Date.now();
+						core.dt = now - core.lt;
+						core.dt *= core.xTime;
+						core.lt = now;
+						core.tt += core.dt;
+						if (core.clock <= core.maxClock){
+							core.clock += core.dt;
+						} else {
+							core.clock -= core.maxClock;
+							tick();
+						}
+						frame();
+						requestAnimationFrame(render);
+					}
+				]
+			};
+			core.chunksLoaded = {x: Math.round(canvas.width/core.chunkSize)+2, y: Math.round(canvas.height/core.chunkSize)+2};
+			if (core.chunkSize % core.cellSize != 0){
+				alert ('Cell size should be proper, man!')
+			} else {
+				core.cellRow = core.chunkSize / core.cellSize;
+			};
+
+			var vcanvas = document.createElement('canvas');
+			vcanvas.width = core.chunkSize;
+			vcanvas.height = core.chunkSize;
+			var vctx = vcanvas.getContext('2d');
+
+			var vcanvas2 = document.createElement('canvas');
+			vcanvas2.width = canvas.width;
+			vcanvas2.height = canvas.height;
+			var vctx2 = vcanvas2.getContext('2d');
+			core.darkness = vcanvas2;
+
+/*
+			var worker = new Worker('worker.js');
+			worker.onmessage = function(event){
+				for (wu = 0; wu < core.chunks.length; wu++){
+					if (core.chunks[wu].ix == event.data.ix && core.chunks[wu].iy == event.data.iy){
+						core.chunks[wu].color = event.data.color;
+						wu = core.chunks.length;
+					}
+				};
+			}
+*/
+			var Resource = function(link,name){
+				this.id = core.resources.length;
+				this.img = new Image();
+				this.img.src = link;
+				this.img.resource = this;
+				this.name = name ? name : 'Resource number '+this.id;
+				this.isReady = false;
+				this.img.onload = function(){
+					console.log('Resource #'+this.resource.id+' ('+this.resource.name+') is ready');
+					this.resource.isReady = true;
+				};
+			};
+			function getResource(id){
+				return core.resources[id].img;
+			};
+			core.resources.push(new Resource('assets/dirt.png','Dirt png'));
+
+			//core.resources.push(new Resource('assets/pine.png','Pine tree'));
+			core.resources.push(new Resource('assets/spruce.png','Spruce tree'));
+
+			core.resources.push(new Resource('assets/spotlight.png','Spotlight test'));
+			core.resources.push(new Resource('assets/person.png','Generic Subject'));
+
+			var Chunk = function(ix,iy){
+				this.ix = ix;
+				this.iy = iy;
+				this.x = ix*core.chunkSize;
+				this.y = iy*core.chunkSize;
+				this.img = false;
+				this.matrix = [];
+				this.items = [];
+				this.fillChunk();
+				
+			};
+			Chunk.prototype.fillChunk = function(){
+				for (fy=0;fy<core.cellRow;fy++){
+					var tmpRow = [];
+					for (fx=0;fx<core.cellRow;fx++){
+						var newCell = new Cell(fx,fy,this);
+						tmpRow.push(newCell);
+					}
+					this.matrix.push(tmpRow);
+				};
+				this.redrawCellsImage();
+			};
+			Chunk.prototype.redrawCellsImage = function(){
+				for (i=0;i<core.cellRow;i++){
+					for (j=0;j<core.cellRow;j++){
+						this.matrix[j][i].display(vctx);
+					};
+				};
+				this.img = vctx.getImageData(0,0,core.chunkSize,core.chunkSize);
+			};
+			Chunk.prototype.display = function(){
+					ctx.putImageData(this.img,this.x + core.bias.x,this.y + core.bias.y);
+			};
+			/*
+			Chunk.prototype.itemsOnFrame = function(){
+				ctx.save();
+				ctx.translate(this.x + core.bias.x,this.y + core.bias.y);
+				for (di = 0; di < this.items.length; di ++){
+						this.items[di].update();
+						this.items[di].display();
+					};
+				ctx.restore();
+			};
+		*/
+			var Cell = function(ix,iy,chunk){
+				this.chunk = chunk;
+				this.walkMult = 1;
+				this.ix = ix;
+				this.iy = iy;
+				this.x = core.cellSize*this.ix;
+				this.y = core.cellSize*this.iy;
+				this.ax = this.x + this.chunk.x;
+				this.ay = this.y + this.chunk.y;
+				this.elevation = perlin2d((this.ax)/(100*core.cellSize), (this.ay)/(100*core.cellSize));
+				this.greenLevel = perlin2d((this.ax)/(20*core.cellSize), (this.ay)/(20*core.cellSize));
+				this.color = 'rgba(255,255,255,1)';
+				this.type = 'Generic';
+				this.rHue = Math.floor((Math.random()-.5)*16);
+				this.setType();
+				this.setColor();
+				this.img = this.elevation > core.waterLevel ? getResource(0) : false;
+				this.addTree();
+			};
+			Cell.prototype.setType = function(){
+				if (this.elevation<core.waterLevel - .1){
+					this.type = 'Deep water';
+					this.walkMult = false;
+				} else if (this.elevation<core.waterLevel){
+					this.type = 'Shallow water';
+					this.walkMult = false;
+				} else if (this.elevation < core.waterLevel + .01){
+					this.type = 'Sand';
+					this.walkMult = .6;
+				} else {
+					if (this.greenLevel > .7) {
+						this.type = 'Forest';
+					} else if (this.greenLevel > .6){
+						this.type = 'Forest edge';
+					} else {
+						this.type = 'Plains';
+					}
+				}
+			};
+			Cell.prototype.setColor = function(){
+				if (this.type == 'Shallow water' || this.type == 'Deep water'){
+					this.color = mapColor(this.elevation,core.waterLevel,.5,84,174,148,6,27,118);
+				} else if (this.type == 'Sand'){
+					this.color = 'rgba(245,235,120,1)';
+				} else if (this.type == 'Forest'){
+					this.color = mapColor(this.elevation,core.waterLevel,1,122+this.rHue,116+this.rHue,54,172+this.rHue,156+this.rHue,104);
+				} else if (this.type == 'Forest edge'){
+					this.color = mapColor(this.elevation,core.waterLevel,1,117+this.rHue,136,37,214+this.rHue,206,142);
+				} else {
+					this.color = mapColor(this.elevation,core.waterLevel,1,112,156,20,255,255,180);
+				} 
+			};
+			Cell.prototype.display = function(context){
+				context.save();
+				context.translate(this.x,this.y);
+				context.fillStyle = this.color;
+				context.fillRect(0,0,core.cellSize,core.cellSize);
+				if (this.img) {context.drawImage(this.img,0,0,core.cellSize,core.cellSize);};
+				context.restore();
+			};
+			Cell.prototype.addTree = function(){
+				if (this.elevation > core.waterLevel + .01){
+					if (this.type == 'Forest' && perlin2d(this.x,this.y) > .7){
+						this.chunk.items.push(new Tree(this.ax+core.cellSize/2,this.ay+core.cellSize/2,'Spruce',this));
+						this.walkMult = .3;
+					} else if (this.type == 'Forest edge' && perlin2d(this.x,this.y) > .75){
+						this.chunk.items.push(new Tree(this.ax+core.cellSize/2,this.ay+core.cellSize/2,'Spruce',this));
+						this.walkMult = .3;
+					}
+				}
+			};
+
+			var Item = function(ax,ay,name,cell){
+				//this.chunk = cell.chunk;
+				this.cell = cell;
+				this.name = name;
+				this.ax = ax;//this.cell.ax + core.cellSize / 2;
+				this.ay = ay;//this.cell.ay + core.cellSize / 2;
+				this.sortIndex = this.ay*100 + this.ax;
+				//this.sprite = {x:this.img.width,y:this.img.height,dx:0,rx:Math.floor((Math.random()-.5)*core.cellSize),scale:1};
+			};
+			
+			Item.prototype.onTick = function(){
+				
+			}
+			Item.prototype.update = function(){
+
+			};
+			Item.prototype.display = function(){
+				ctx.drawImage(this.img,this.sprite.x*this.sprite.dx,0,this.sprite.x,this.sprite.y,this.ax - this.sprite.x*this.sprite.scale/2 + this.sprite.rx + core.bias.x,this.ay - this.sprite.y*this.sprite.scale + core.bias.y,this.sprite.x*this.sprite.scale,this.sprite.y*this.sprite.scale);
+			};
+
+			var Tree = function(ax,ay,name,cell){
+				Item.call(this,ax,ay,name,cell);
+				this.img = getResource(1);
+				this.isAlive = true;
+				this.adulthood = 6000000;
+				this.expectancy = 24000000 + Math.round(Math.random()*10000000);
+				this.age = Math.floor(Math.random()*this.adulthood*(this.cell.type == 'Forest' ? 2 : .8));
+				this.sprite = {x:50,y:112,dx:0,rx:Math.floor((Math.random()-.5)*core.cellSize),scale:0};
+				this.setScale();
+
+			}
+			Tree.prototype = Object.create(Item.prototype);
+			Tree.prototype.setScale = function(){
+				this.sprite.scale = this.adulthood - this.age <= 0 ? 1 : this.age / this.adulthood;
+			};
+			Tree.prototype.onTick = function(){
+				this.age += core.dt;
+				if (this.isAlive){
+					if (this.age > this.expectancy) {this.sprite.dx = 1; this.isAlive = false};
+					this.setScale();
+				}
+			}
+			/*
+			var Grass = function(cell){
+				Item.call(cell,'Grass');
+				this.done = false;
+				this.timeToAdult = 500 + Math.round(Math.random()*50);
+				this.timer = 0;
+				//this.img = new Image();
+				//this.img.src = 'grass.png';
+			};
+			Grass.prototype = Object.create(Item.prototype);
+			Grass.prototype.update = function(){
+
+			}
+			Grass.prototype.clockUpdate = function(){
+				this.age ++;
+				this.period ++;
+				this.imgBiasX = this.age < this.treshold / 4 ? 0 : this.age < this.treshold / 2 ? 20 : this.age < this.treshold * 3 / 4 ? 40 : 60;
+				if (this.period >= this.treshold && this.age >= this.treshold){
+					this.chunk.items.push(new Seed(this));
+					this.period = 0;
+				};
+				if (!this.done){
+					this.cell.type.fertility -= this.drainClock;
+					if (this.cell.type.fertility <= 0){
+						this.cell.type.fertility = 0;
+						this.done = true;
+						this.cell.haveFlora = false;
+					}
+				}
+			};
+			*/
+			var Subject = function(ax,ay,name){
+				Item.call(this,ax,ay,name);
+				this.img = getResource(3);
+				this.sprite = {x:this.img.width,y:this.img.height,dx:0,rx:0,scale:1};
+				this.state = 0;							// 0 for standing, 1 for walking
+				this.focus = false;
+				this.walkSpeed = .08;
+				this.walkDirection = 0;
+				this.delta = {x:0,y:0};
+				this.path = [];
+			};
+			Subject.prototype = Object.create(Item.prototype);
+			Subject.prototype.goto = function(cell){
+				if (cell.walkMult){
+					//this.focus = cell;
+					//this.mode = 1;
+					this.path = findPath(this.cell,cell);
+					//console.log(this.path);
+					this.focus = this.path.pop();
+				};
+
+			};
+			Subject.prototype.onTick = function(){
+				this.cell = findCell(this.ax,this.ay);
+			};
+			Subject.prototype.update = function(){
+				if (this.path.length >= 0 && this.focus){				//Walk to cell
+					this.delta.x = this.focus.ax + core.cellSize/2 - this.ax;
+					this.delta.y = this.focus.ay+ core.cellSize/2 - this.ay + 2;
+					this.walkDirection = Math.atan2(this.delta.y,this.delta.x);
+					var dx = Math.cos(this.walkDirection)*this.walkSpeed*(this.cell.walkMult ? this.cell.walkMult : 1);
+					var dy = Math.sin(this.walkDirection)*this.walkSpeed*(this.cell.walkMult ? this.cell.walkMult : 1);
+					var reachedX = false;
+					var reachedY = false;
+					if (Math.abs(dx*core.dt) < Math.abs(this.delta.x)){
+						this.ax += dx*core.dt;
+					} else {
+						reachedX = true;
+					};
+					if (Math.abs(dy*core.dt) < Math.abs(this.delta.y)){
+						this.ay += dy*core.dt;
+					} else {
+						reachedY = true;
+					};
+					if (reachedX && reachedY){
+						this.ax = this.focus.ax + core.cellSize/2;
+						this.ay = this.focus.ay + core.cellSize/2 + 2;
+						//this.mode = 0;
+						this.focus = this.path.pop();
+						//this.path = false;
+					};
+					this.sortIndex = (this.ay)*100 + this.ax;
+				};
+			};
+			Subject.prototype.display = function(){
+				ctx.drawImage(this.img,this.sprite.x*this.sprite.dx,0,this.sprite.x,this.sprite.y,this.ax - this.sprite.x*this.sprite.scale/2 + core.bias.x,this.ay - this.sprite.y*this.sprite.scale + core.bias.y,this.sprite.x*this.sprite.scale,this.sprite.y*this.sprite.scale);
+				if (this.path.length >0){
+					ctx.strokeStyle = 'rgb(0,255,0)';
+					ctx.beginPath();
+					ctx.moveTo(this.path[0].ax+core.bias.x+core.cellSize/2,this.path[0].ay+core.bias.y+core.cellSize/2);
+					for (p=0;p<this.path.length;p++){
+						ctx.lineTo(this.path[p].ax+core.bias.x+core.cellSize/2,this.path[p].ay+core.bias.y+core.cellSize/2);
+					}
+					//ctx.closePath();
+					ctx.stroke();
+				}
+			};
+
+			var ViewPort = function(){
+				this.x = core.bias.x;
+				this.y = core.bias.y;
+				this.speed = .3;
+				this.velocity = {x:0,y:0};
+				this.acceleration = {x:0,y:0};
+				this.force = {x:0,y:0};
+				
+			};
+			ViewPort.prototype.update = function(){
+				/*
+				this.acceleration.x += this.force.x;
+				this.acceleration.y += this.force.y;
+				this.velocity.x += this.acceleration.x;
+				this.velocity.y += this.acceleration.y;
+				this.x += this.velocity.x;
+				this.y += this.velocity.y;
+
+				this.velocity.x *= Math.abs(this.velocity.x) > .01 ? .96 : 0;
+				this.velocity.y *= Math.abs(this.velocity.y) > .01 ? .96 : 0;
+
+				this.acceleration.x = 0;
+				this.acceleration.y = 0;
+				
+				core.bias.x = Math.round(this.x);
+				core.bias.y = Math.round(this.y);
+				*/
+				core.bias.x = Math.round(canvas.width/2 - core.hero.ax);
+				core.bias.y = Math.round(canvas.height/2 - core.hero.ay);
+			};
+			core.viewPort = new ViewPort();
+
+			function updateChunks(){
+				var updated = [];
+				var chunksBias = {x: Math.floor(-core.bias.x/core.chunkSize)-1, y: Math.floor(-core.bias.y/core.chunkSize)-1};
+				for (cy = chunksBias.y; cy < chunksBias.y + core.chunksLoaded.y; cy++){
+					for (cx = chunksBias.x; cx < chunksBias.x + core.chunksLoaded.x; cx++){
+						var found = false;
+						var index = false;
+						for (s = 0; s < core.chunks.length; s++){							//Searching for already loaded chunk in this position
+							if (core.chunks[s].ix == cx && core.chunks[s].iy == cy){		
+								found = true;
+								index = s;
+							};
+						}
+						if (found){
+								updated.push(core.chunks[index]);
+							} else {
+								var created = new Chunk(cx,cy);
+								//worker.postMessage(created);
+								updated.push(created);
+								
+							}
+					}
+				};
+				core.chunks = updated;
+				core.items = [];
+				for (r=0;r<core.chunks.length;r++){
+					core.items = core.items.concat(core.chunks[r].items)
+				}
+				core.items.push(core.hero);
+				core.items.sort(function(a,b){return a.sortIndex - b.sortIndex});
+			};
+
+			function chunksOnTick(){
+
+			}
+
+			function chunksOnFrame(){
+				updateChunks();
+				for (r=0;r<core.chunks.length;r++) core.chunks[r].display();
+			};
+
+			function itemsOnTick(){
+				for (ai=0;ai<core.items.length;ai++){
+					core.items[ai].onTick();
+				}
+			}
+
+			function itemsOnFrame(){
+				for (ai=0;ai<core.items.length;ai++){
+					core.items[ai].update();
+					core.items[ai].display();
+				}
+			};
+
+			function displayTechnical(){
+				if (core.hero.path){
+					ctx.fillStyle = 'rgb(255,0,0)';
+					ctx.fillRect(core.hero.path.x+core.bias.x,core.hero.path.y+core.bias.y,4,4);
+				}
+			}
+
+
+			function findCell(x,y){
+				
+				var ciy = Math.floor(y / core.chunkSize);
+				var cix = Math.floor(x / core.chunkSize);
+				var theChunk = false;
+				for (tc=0;tc<core.chunks.length;tc++){
+					if (core.chunks[tc].ix == cix && core.chunks[tc].iy == ciy){
+						theChunk = core.chunks[tc];
+					}
+				};
+				if (theChunk){
+					var iy = Math.floor((y - theChunk.iy*core.chunkSize)/core.cellSize);
+					var ix = Math.floor((x - theChunk.ix*core.chunkSize)/core.cellSize);
+					var theCell = theChunk.matrix[iy][ix];
+					return theCell ? theCell : false;
+				}
+				
+				
+			}
+
+			function cellHover(x,y){
+					core.hoverCell = findCell(x - core.bias.x, y - core.bias.y);
+			};
+			function displayHovers(){
+				if (core.hoverCell){
+					ctx.save();
+					ctx.translate(core.hoverCell.x + core.hoverCell.chunk.x + core.bias.x, core.hoverCell.y + core.hoverCell.chunk.y + core.bias.y);
+					ctx.strokeStyle = 'rgba(255,255,0,.5)';
+					ctx.strokeRect(0,0,core.cellSize,core.cellSize);
+					ctx.restore();
+					ctx.fillText("Elevation: "+core.hoverCell.elevation,4,canvas.height - 20);
+					ctx.fillText("Type: "+core.hoverCell.type,4,canvas.height - 10);
+				}
+			};
+			function calculateGll(){
+				core.gll = 2*Math.sin(mapNumber(core.dayTime,0,core.dayPeriod,0,Math.PI*2)-Math.PI/1.5) + .5;
+				if (core.gll < 0){
+					core.gll = 0;
+				} else if (core.gll > 1){
+					core.gll = 1;
+				};
+			};
+			function dayTimer(){
+				core.dayTime += core.dt;
+				if (core.dayTime > core.dayPeriod){
+					core.dayTime -= core.dayPeriod;
+				}
+			};
+
+			function lightFilter(){
+				ctx.save()
+				ctx.globalCompositeOperation = 'multiply';
+				var alpha = .96 - core.gll*.96;
+
+				var morningness = 1 - Math.abs(.5 - core.gll)*2;
+				vctx2.clearRect(0,0,vcanvas2.width,vcanvas2.height);
+				vctx2.fillStyle = 'rgba('+Math.floor(morningness * 180 + 5)+',10,'+Math.floor((1 - morningness) * 120 + 10)+','+alpha+')';
+				vctx2.fillRect(0,0,vcanvas2.width,vcanvas2.height);
+
+
+				/* SPOTLIGHT EXPERIMENT
+				if (core.hoverCell){
+					var spot = getResource(2);
+					vctx2.drawImage(spot,core.mouse.x - spot.width / 2,core.mouse.y - spot.height / 2);
+				}
+				*/
+
+				ctx.drawImage(core.darkness,0,0);
+				ctx.restore();
+			};
+			/*
+			window.addEventListener("keydown",function(){
+				core.viewPort.force.x = event.keyCode == 65 ? core.viewPort.speed : event.keyCode == 68 ? -core.viewPort.speed : core.viewPort.force.x;
+				core.viewPort.force.y = event.keyCode == 87 ? core.viewPort.speed : event.keyCode == 83 ? -core.viewPort.speed : core.viewPort.force.y;
+			});
+			window.addEventListener("keyup",function(){
+				if (event.keyCode == 65 || event.keyCode == 68) core.viewPort.force.x = 0;
+				if (event.keyCode == 87 || event.keyCode == 83) core.viewPort.force.y = 0;
+			});
+			*/
+			canvas.addEventListener('mousemove',function(e){
+				cellHover(e.layerX,e.layerY);
+				core.mouse.x = e.layerX;
+				core.mouse.y = e.layerY;
+			});
+
+			
+			canvas.addEventListener('click',function(e){
+				core.hero.goto(core.hoverCell);
+			});
+			
+			/* ADDING TREE ON CLICK
+			canvas.addEventListener('click',function(e){
+				var theCell = findCell(e.layerX,e.layerY);
+				theCell.chunk.items.push(new Item(theCell));
+			});
+			*/
+
+			//var one = new Subject();
+
+			function ignition(){
+				console.log('Resources loaded, starting main engine');
+				render = core.renderFunctions[1];
+				core.hero = new Subject(canvas.width/2,canvas.height/2,'Hero');
+				render();
+			};
+
+			function frame(){
+				ctx.fillStyle = 'rgb(28,28,35)';
+				ctx.fillRect(0,0,canvas.width,canvas.height);
+
+				core.viewPort.update();
+				chunksOnFrame();
+				itemsOnFrame();
+				displayHovers();
+				lightFilter();
+				//displayTechnical();
+
+				ctx.fillText("Ticks passed: "+Math.floor(core.tt/core.maxClock),4,10);
+				ctx.fillText("Time: "+Math.floor(core.dayTime*.000025),4,20);
+				ctx.fillText("Chunks loaded: "+core.chunks.length,4,30);
+				ctx.fillText("Items rendered: "+core.items.length,4,40);
+			};
+			function tick(){
+				dayTimer();
+				calculateGll();
+				chunksOnTick();
+				core.items.sort(function(a,b){return a.sortIndex - b.sortIndex});
+				itemsOnTick();
+			};
+
+			(function render(){
+				ctx.clearRect(0,0,canvas.width,canvas.height);
+				ctx.fillText("Loading resources...",30,30);
+				core.loaded = true;
+				for (rr = 0; rr < core.resources.length; rr++){
+					if (!core.resources[rr].isReady){
+						core.loaded = core.loaded && false;
+					}
+				};
+				if (core.loaded){
+					ignition();
+				} else {
+				requestAnimationFrame(render);
+			};
+
+			})();
+
+
+		</script>
+</body>
+</html>

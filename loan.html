@@ -1,0 +1,396 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"> 
+<html xmlns="http://www.w3.org/1999/xhtml"> 
+	<head> 
+		<title>Кредит надо?</title>
+		<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1" />
+		<link rel="stylesheet" href="loan/tt.css" type="text/css" charset="utf-8" />
+		<style type="text/css">
+		html, body, svg {
+			padding: 0;
+			margin: 0;
+			width:100%;
+			height:100%;
+		}
+		body {
+			/*overflow: hidden;*/
+		}
+		.info {
+			position: absolute;
+			pointer-events: none;
+			width: 100%;
+			height: 100%;
+			top: 0;
+			left: 0;
+			color: #fff;
+			letter-spacing: .6px;
+		}
+		.buffer {
+			position: fixed;
+			top:50%;
+			left: -10px;
+			pointer-events: none;
+			opacity: 0;
+			width:1px;
+            height:1px;
+			font-size: 16px;
+		}
+		.buffer:focus {
+			font-size: 16px;
+		}
+		.huge {
+			margin: 12% 0 4% 8%;
+			font: 500 48px/56px 'TT Norms';
+			pointer-events: auto;
+		}
+
+		.normal {
+			margin: 0 8%;
+			font: 400 32px/48px 'TT Norms';
+			pointer-events: auto;
+		}
+		.visual {
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+		}
+		.visual svg {
+			width: 100%;
+			height: 100%;
+		}
+
+		.vertical .green {
+			fill: #3223ff;
+		}
+		.vertical .red {
+			fill: #ff1b5a;
+		}
+		.vertical:hover .green {
+			fill: #4152ff;
+		}
+		.vertical:hover .red {
+			fill: #e0124e;
+		}
+		.input {
+			color: #fffb6f;
+		}
+		.chosen {
+			background: #000;
+		}
+		.narrative {
+			display: flex;
+			flex-wrap: wrap;
+			font-family: 'TT Norms', sans-serif;
+			line-height: 32px;
+			letter-spacing: .4px;
+			margin: 20% 0 0 8%;
+		}
+		.narrative .brick {
+			width: 480px;
+			margin: 0 4em 6em 0;
+			pointer-events: all;
+		}
+		.narrative .brick p{
+			margin: 0;
+			font-size: 24px;
+		}
+		.narrative .brick h2{
+			margin: 0 0 16px 0;
+		}
+		.narrative h1 {
+			width: 100%;
+			font-size: 48px;
+			margin: 0 0 4rem 0;
+		}
+		.vertical .labels text {
+			fill: #fff;
+			font: 300 13px 'TT Norms';
+			letter-spacing: .5px;
+			opacity: 0;
+			transition: opacity .1s ease;
+			pointer-events: none;
+		}
+		.vertical .labels text.switched {
+			direction: rtl;
+		}
+		.vertical:hover .labels text {
+			opacity: 1;
+		}
+
+		@media (max-width: 648px){
+
+			.huge {
+				font: 500 36px/48px 'TT Norms';
+			}
+			.normal {
+				font: 400 24px/36px 'TT Norms';
+			}
+			.narrative {
+				line-height: 26px;
+			}
+			.narrative .brick p {
+				font-size: 18px
+			}
+
+		}
+
+		</style>
+	</head> 
+	<body>
+		<div class="visual">
+			<svg></svg>
+		</div>
+		<div class="info">
+			<div class="huge">
+				<span>Если занять у банка </span><nobr><span class="input loan">xxx</span> <span> ₽</span></nobr><br/><span>на </span><span class="input term">xxx</span><span> </span><span class="yearWord">yyy</span><span> под </span><span class="input percents">xxx</span><span>% годовых, </span><br><span>с ежемесячной страховкой в </span><span class="input insurance"></span><span>%, то</span>
+			</div>
+			<div class="normal">
+			</div>
+			<div class="narrative">
+				<h1>Выводы</h1>
+				<div class="brick">
+					<h2>Срок</h2>
+					<p>
+						Чем больше срок, тем выше итоговый процент банка. Кредит на 2 года под 10% годовых стоит ровно столько же, сколько кредит на 1 год под 20%. Платить больше каждый месяц — дешевле.
+					</p>
+				</div>
+				<div class="brick">
+					<h2>Процент</h2>
+					<p>
+						Стоимость кредита растёт быстрее, чем процент. Кредит на 10 лет при 10% годовых стоит не в 2 раза дешевле, чем при 20%, а в 2,24. Очевидно, чем меньше процент — тем лучше.
+					</p>
+				</div>
+				<div class="brick">
+					<h2>Страховка</h2>
+					<p>
+						Тут всё просто: каждый процент в ежемесячной страховке это +12% годовых, так что страховка может стоить дороже кредита. От страховки можно отказаться. Избегай страховки к кредиту полностью.
+					</p>
+				</div>
+				<div class="brick">
+					<h2>Сумма</h2>
+					<p>
+						Процент банка от суммы не зависит.
+					</p>
+				</div>
+			</div>
+		</div>
+		
+
+		<script type="text/javascript">
+
+		let core = {
+			loan: 1000000,
+			term: 60,
+			percents: .15,
+			insurance: .005,
+			b_loan: document.querySelector('.loan'),
+			b_term: document.querySelector('.term'),
+			b_yearWord: document.querySelector('.yearWord'),
+			b_percents: document.querySelector('.percents'),
+			b_insurance: document.querySelector('.insurance'),
+			b_details: document.querySelector('.normal'),
+			b_svg: document.querySelector('.visual svg'),
+			ns: 'http://www.w3.org/2000/svg'
+			}
+
+		let buffer = document.createElement('input');
+		buffer.classList.add('buffer');
+		buffer.setAttribute('type','tel');
+		document.body.appendChild(buffer);
+
+		inputify(core.b_loan,'loan',[1,1e9],false,100000);
+		inputify(core.b_term,'term',[1,50],(a)=>a*12,1);
+		inputify(core.b_percents,'percents',[0,146],(a)=>a/100,.1);
+		inputify(core.b_insurance,'insurance',[0,5],(a)=>a/100,.1);
+
+		function inputify(i,key,minmax,conversion,increment){
+			if (!conversion) conversion = (a)=>a;
+			if (!increment) increment = 1;
+			i.addEventListener('click',()=>{
+				if (!i.isChosen){
+					i.isChosen = true;
+					i.classList.add('chosen');
+					let hidden = i.innerHTML.match(/\d+(\.\d+)?/g).join('');
+					buffer.value = '';//i.innerHTML.match(/\d+(\.\d+)?/g).join('');
+					buffer.focus();
+					buffer.select();
+					let updateValue = ()=>{
+						if (typeof +buffer.value === 'number' && +buffer.value >= minmax[0] && +buffer.value <= minmax[1]){
+							core[key] = conversion(+buffer.value);
+							i.innerHTML = +buffer.value;
+							update();
+						} else if (+buffer.value > minmax[1]){
+							buffer.value = minmax[1];//buffer.value.slice(0,buffer.value.length - 1);
+						} else if (+buffer.value < minmax[0]){
+							buffer.value = minmax[0];
+							if (+buffer.value < 0){
+								buffer.value = 0;
+							}
+						}
+						
+					};
+					let updateByKey = (e)=>{
+						if (e.which === 38 || e.which === 40){
+							buffer.select();
+							if (hidden) {
+								buffer.value = hidden;
+								hidden = 0;
+							}
+							buffer.value = +buffer.value + (e.which === 38 ? increment : -increment);
+							updateValue();	
+						} else if (e.which === 13){
+							buffer.blur();
+						}
+						
+					}
+					buffer.addEventListener('input', updateValue);
+					buffer.addEventListener('keydown',updateByKey);
+					buffer.addEventListener('blur',()=>{
+						i.isChosen = false;
+						i.classList.remove('chosen');
+						buffer.removeEventListener('input', updateValue);
+						buffer.removeEventListener('keydown', updateByKey);
+					});
+				}
+			});
+		}
+
+		function update(){
+			let result = calculon(core.loan,core.term,core.percents,core.insurance);
+
+			core.b_loan.innerHTML = beautify(core.loan);
+			core.b_term.innerHTML = core.term/12;
+			core.b_yearWord.innerHTML = goodYear(core.term / 12);
+			core.b_percents.innerHTML = Math.round(core.percents * 100 * 10)/10;
+			core.b_insurance.innerHTML = Math.round(core.insurance * 100 * 10)/10;
+
+			core.b_details.innerHTML = 'будешь платить '+beautify(result.total.monthly)+' ₽ каждый месяц,<br/>всего придётся отдать '+beautify(result.total.total)+' ₽.<br/>Банку при этом уйдёт '+beautify(result.total.bankCash)+' ₽,  то есть '+result.total.bankPercent+'% от ' + beautify(core.loan) + '.<br />Для нормальной жизни при этом <br />тебе нужно зарабатывать не меньше ' + beautify(Math.ceil(result.total.monthly*2))+ '₽<br/>Такие дела.';
+
+			core.b_svg.innerHTML = '';
+			let barWidth = 100 / result.rates.length;
+			for (let i = 0; i < result.rates.length; i++){
+
+				let rate = result.rates[i] < 0 ? 0 : result.rates[i] > 1 ? 1 : result.rates[i];
+
+				let g = document.createElementNS(core.ns,'g');
+				g.classList.add('vertical');
+				let gt = document.createElementNS(core.ns,'g');
+				gt.classList.add('labels');
+
+				let bar = document.createElementNS(core.ns,'rect');
+				bar.classList.add('green');
+				bar.setAttribute('x', i * barWidth + '%');
+				bar.setAttribute('y', 100 * rate + '%');
+				bar.setAttribute('width', barWidth + .04 + '%');
+				bar.setAttribute('height', 100 * (1-rate) + '%');
+
+				let bar2 = document.createElementNS(core.ns,'rect');
+				bar2.classList.add('red');
+				bar2.setAttribute('x', i * barWidth + '%');
+				bar2.setAttribute('y', '0%');
+				bar2.setAttribute('width', barWidth + .04 + '%');
+				bar2.setAttribute('height', 100 * rate + '%');
+
+				let switched = i > result.rates.length / 1.5;
+				let pole = switched ? (i) * barWidth - .3 + '%' : (i+1) * barWidth + .3 + '%';
+				let s01 = document.createElementNS(core.ns,'text');
+				s01.innerHTML = 'Месяц ' + (i+1);
+				s01.setAttribute('x', pole);
+				s01.setAttribute('y', 15);
+				gt.appendChild(s01);
+				let s02 = document.createElementNS(core.ns,'text');
+				let good_money = Math.round(result.total.monthly * (1 - rate));
+				let bad_money = Math.round(result.total.monthly * rate);
+				s02.innerHTML = 'вернешь долга ' + (good_money > 0 ? beautify(good_money) + '₽' : 'жалкие копейки');
+				s02.setAttribute('x', pole);
+				s02.setAttribute('y', 45);
+				gt.appendChild(s02);
+				let s03 = document.createElementNS(core.ns,'text');
+				s03.innerHTML = (rate === 0 ? 'без процентов' : bad_money === 0 ? 'банку уйдут крохи' : 'процент банка ' + beautify(bad_money) + '₽');
+				s03.setAttribute('x', pole);
+				s03.setAttribute('y', 30);
+				gt.appendChild(s03);
+
+				if (switched){
+					s01.classList.add('switched');
+					s02.classList.add('switched');
+					s03.classList.add('switched');
+				}
+
+				g.appendChild(bar);
+				g.appendChild(bar2);
+				g.appendChild(gt);
+				core.b_svg.appendChild(g);
+
+				g.addEventListener('mouseover',(e)=>{
+					// core.b_svg.removeChild(g);
+					core.b_svg.appendChild(g);
+				})
+			}
+			
+
+		}
+
+		let beautify = function(n){
+			let decimal = ',' + (Math.floor((n % 1) * 100) / 100).toString().slice(2) || '';
+			if (decimal === ',') decimal = '';
+			let s = n.toFixed();
+			if (n > 9999){
+				s = s.split('').reverse().join('');
+				s = s.match(/\d{1,3}/g).join(' ').split('').reverse().join('');
+			}
+			return s + decimal;
+		}
+
+		let goodYear = function(n){
+			if (n % 1 === 0){
+				let s = n.toString();
+				let l = +s[s.length - 1];
+				if (n>10 && n<20) l = 9;
+				return l > 4 ? 'лет' : l > 1 ? 'года' : l > 0 ? 'год' : 'лет';
+			} else {
+				return 'года';
+			}
+		}
+
+		let calculon = function(m,t,p,ins){
+			let data = [];
+			p = p / 12 + ins;
+			let monthly = m * p / (1 - (1 + p)**-t);
+			if (p > 1e-15 && monthly > .01){
+				// let monthly = m * (p + 1/t);
+				// let monthly = m * (p + (p / (Math.pow(1+p,t) - 1)));
+				// monthly = Math.round(+monthly * 100) / 100;
+
+				let rest = m;
+				for (let i = 0; i < t; i++){
+					let interestRate = p / (monthly === 0 ? 1e-15 : monthly) * rest;
+					data.push(interestRate);
+					rest -= Math.round(monthly * (1 - interestRate) * 100) / 100;
+				}
+
+				let tt = monthly*t;
+				let bc = Math.round(tt - m);
+				let bf = Math.round(bc / m * 100);
+
+				return {total: {monthly: monthly, total: tt, bankCash: bc, bankPercent: bf}, rates: data};
+			} else {
+				for (let i = 0; i < t; i++){
+					data.push(0);
+				}
+				return {total: {monthly: m/t, total: m, bankCash: 0, bankPercent: 0}, rates: data};
+			}
+
+
+			
+
+		};
+		
+		update();
+
+
+		</script>
+	</body>
+</html>

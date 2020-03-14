@@ -1,0 +1,295 @@
+body, html {margin:0; padding: 0; width: 100%; height: 100%; font-family: 'PT Serif', serif;}
+            .narrative {
+                position: relative;
+                margin: 0 10% 0 60%;
+                padding: 0;
+            }
+            .narrative h1 {
+                font-size: 40px;
+                margin:0 0 64px 0;
+            }
+            .narrative p {
+                font-size: 20px;
+                line-height: 32px;
+                margin-bottom: 64px;
+            }
+            .narrative a {
+                color:#fff;
+            }
+            .dark {
+                color: rgb(255,255,255);
+                letter-spacing: .6px;
+            }
+            .oneone {
+                background: #FFF url("sqrt1.png") no-repeat;
+            }
+            .onetwo {
+                background: #FFF url("sqrt2.png") no-repeat;
+            }
+            .onethree {
+                background: #FFF url("sqrt3.png") no-repeat;
+            }
+            .onefour{
+                background: #000 url("axis1.png") no-repeat;
+            }
+            .one {
+                background: #000 url("axis.png") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .two {
+                background: #000 url("pure.png") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .three {
+                background: #000 url("purex13.png") no-repeat;
+                color: rgb(21,23,26);
+            }
+            .four {
+                background: #000 url("purex210000.png") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .five {
+                background: #000 url("bwx210000.png") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .six {
+                background: rgb(161,64,48) url("firex210000.jpg") no-repeat;
+                color: rgb(21,23,26);
+            }
+            .seven {
+                background: #000 url("bwrx210000.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .eight {
+                background: #000 url("royalrx210000.jpg") no-repeat;
+                color: rgb(4,3,40);
+            }
+            .nine {
+                background: #000 url("cycloneSR.jpg") no-repeat;
+                color: rgb(245,250,255);
+            }
+            .ten {
+                background: #000 url("string.jpg") no-repeat;
+                color: rgb(32,42,66);
+            }
+            .eleven {
+                background: #000 url("julia.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .twelve {
+                background: #000 url("assking.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .thirteen {
+                background: #000 url("mace.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .thirteen .narrative {
+                margin:0 60% 0 10%;
+            }
+            .fourteen {
+                background: #000 url("sting.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .fifteen {
+                background: #000 url("growth.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .sixteen {
+                background: #000 url("killer.jpg") no-repeat;
+                color: rgb(136,70,85);
+            }
+            .seventeen {
+                background: #000 url("forks.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .eighteen {
+                background: #FFF url("forks2.jpg") no-repeat;
+                color: rgb(18,26,43);
+            }
+            .nineteen {
+                background: #FFF url("forks3.jpg") no-repeat;
+                color: rgb(96,32,62);
+            }
+            .twenty {
+                background: #000 url("walle.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .twentyone {
+                background: #000 url("moon.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .twentytwo {
+                background: #000 url("sun.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .twentytwo .narrative {
+                margin:0 60% 0 10%;
+            }
+            .twentythree {
+                background: #000 url("storm.jpg") no-repeat;
+                color: rgb(255,251,148);
+            }
+            .twentyfour {
+                background: #000 url("ship.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .twentyfive {
+                background: #000 url("ship2.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .twentysix {
+                background: #000 url("ship3.jpg") no-repeat;
+                color: rgb(0,0,0);
+            }
+            .twentysix .narrative {
+                margin:0 60% 0 10%;
+            }
+            .twentyseven {
+                background: #000 url("ship4.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .twentyseven .narrative {
+                margin:0 45% 0;
+                text-align: center;
+            }
+            .twentyeight {
+                background: #000 url("ship5.jpg") no-repeat;
+                color: rgb(0,0,0);
+            }
+            .twentynine {
+                background: #000 url("ocean.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .twentynine .narrative {
+                margin:0 60% 0 10%;
+            }
+            .thirty {
+                background: #000 url("stripes.jpg") no-repeat;
+                color: rgb(255,255,255);
+            }
+            .zero {
+                background: #000 url("shipMasts.jpg") no-repeat;
+                color: rgb(31,33,36);
+                font-size: 56px;
+                text-align: center;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            .zeromobile {
+                background: #000 url("shipMastsM.jpg") no-repeat;
+            }
+            .zero .header{
+                letter-spacing: 18px;
+                opacity: 1;
+                animation: headerIn 4s;
+            }
+            @keyframes headerIn{
+                0% {
+                    opacity: 0;
+                    letter-spacing: 60px;
+                }
+                100% {
+                    opacity: 1;
+                    letter-spacing: 18px;
+                }
+            }
+
+            .layers {
+                position: relative;
+                width: 100%;
+                padding: 120px 0;
+                min-height: 100vh;
+                background-attachment: fixed;
+                background-size: cover;
+                overflow-x:hidden;
+            }
+            .zero {
+                padding: 0;
+            }
+
+            .narrative .credits {
+                font-family: Verdana, sans-serif;
+                font-size: 10px;
+                line-height: 18px;
+                letter-spacing: .4px;
+                margin-top: 240px;
+            }
+
+            .mobile{
+                background-attachment: inherit;
+                background-size: contain;
+                padding: 60px 0; 
+                width:100vw;
+                min-height: calc(100vw * 413 / 720 - 120px);
+            }
+            .mobile .narrative {
+                overflow-x: hidden;
+            }
+            .mobile .narrative p{
+                font-size:13px;
+                line-height: 19px;
+            }
+            .mobile .header{
+                animation: none;
+            }
+
+            .mintro {
+                background: #000 url("shipMasts.jpg") no-repeat;
+                background-size: cover;
+                width:100%;
+                height: 100%;
+                color: rgb(31,33,36);
+                font-size: 56px;
+                text-align: center;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            .mintro .header {
+                letter-spacing: 18px;
+            }
+            .mimage{
+                width:100%;
+                box-shadow: 0 10px 30px rgba(0,0,25,.1);
+            }
+            .mp{
+                margin: 100px 120px;
+            }
+            .msub{
+                margin: 0 120px 100px 10px;
+                font-size: 11px;
+                text-align: right;
+            }
+            .msmall{
+                font-size: 11px;
+                font-family: Verdana, sans-serif;
+                margin-bottom: 120px;
+            }
+            .mback{
+                position: absolute;
+                top:40px;
+                right:40px;
+                font-size:16px;
+                border-radius: 2px;
+                background: rgba(255,255,255,.1);
+                padding: 16px;
+            }
+            .dback{
+                position: absolute;
+                top:10px;
+                right:20px;
+                font-size:11px;
+                
+            }
+            .mback a{
+                color: rgb(31,33,72);
+                font-family: Verdana, sans-serif;
+                letter-spacing: .4px
+            }
+            .dback a{
+                color: rgba(31,33,72,.5);
+                font-family: Verdana, sans-serif;
+                letter-spacing: .4px;
+            }

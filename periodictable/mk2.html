@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Таблица Менделеева β</title>
+        <script src="mk2/assets/light.js"></script>
+        <script src="mk2/assets/periodic.js@v7"></script>
+        <script type="text/javascript" src="mk2/assets/data.js@v4"></script>
+        <script type="text/javascript" src="mk2/assets/words.js@v5"></script>
+        <!-- <link rel="stylesheet" href="assets/lato/Lato/latofonts.css" type="text/css" charset="utf-8" /> -->
+        <link rel="stylesheet" href="mk2/assets/fonts/fact.css@v3.css" type="text/css" charset="utf-8" />
+        <!-- <meta property="og:image" content="assets/cover.jpg"> -->
+        <!-- <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' /> -->
+        <!-- <meta name='viewport' content='width=device-width' /> -->
+        
+        <style>
+            html {
+              height:100%;
+            }
+            body {
+              font-family: 'LatoWeb'; padding:0; margin:0; width:100%; height: 100%;
+              min-width: 1000px;
+              min-height: 600px;
+              overflow: hidden;
+            }
+            .canvas {
+              width: 100%;
+              height: 100%;
+            }
+            .menuSwitch {
+              position: absolute;
+              top: 20px;
+              left: 20px;
+              width: 32px;
+              height: 32px;
+              border-radius: 50%;
+              background: #fff;
+              box-shadow: 0 8px 40px #0162;
+              color: #000;
+              text-align: center;
+              line-height: 2.2em
+            }
+            .dataModes {
+              position: absolute;
+              top: 20px;
+              left: 20px;
+              background: #fff;
+              padding: 1.5em;
+              border-radius: 8px;
+              box-shadow: 0 8px 40px #0162;
+              max-width: calc(100% - 40px);
+            }
+            .dataModes .dataMode {
+              font: 400 14px/14px 'TT Norms Pro';
+              /*margin: 0 0 1em 0;*/
+              cursor: pointer;
+              padding: .7em .5em .4em .5em;
+              border-radius: 4px;
+            }
+            /*.dataModes .dataMode:hover, .dataModes .dataMode:hover .enum {
+              color: #FF3B2F;
+            }*/
+            .dataModes h1 {
+              position: relative;
+              font: 800 30px/30px 'Fact';
+              clear: right;
+            }
+            .hotkey {
+              color: #0008;
+            }
+            .enum {
+              margin: 0 .5em 0 0;
+              display: inline-block;
+              text-align: right;
+              width: 1em;
+            }
+            .dataMode .switch span{
+              border: 1px solid #3223ff;
+              color: #3223ff;
+              padding: .2em .5em 0 .5em;
+            }
+            /*.dataMode .switch span:hover{
+              border: 2px solid #FF3B2F;
+              color: #FF3B2F;
+            }*/
+            .dataMode .switch .s_f {
+              /*padding: .2em .5em 0 .5em;*/
+              border-radius: 4px 0 0 4px;
+            }
+            .dataMode .switch .s_b {
+              
+              border-left: none !important;
+              /*padding: .2em .5em 0 .5em;*/
+              border-radius: 0 4px 4px 0;
+              margin: 0 .5em 0 0;
+            }
+            .dataMode .switch .s_iso {
+              
+              /*padding: .2em .5em 0 .5em;*/
+              border-radius: 4px;
+            }
+            .modeName {
+              display: inline-block;
+              width: 16em;
+            }
+
+            .lit, .lit .enum {
+              color: #FF3B2F;
+            }
+            .dataModes .dataMode:hover {
+              background: #FFE81644;
+            }
+            .dataModes .dataMode.chosen {
+              background: #FFE816;
+            }
+
+            .dataMode .switch .lit {
+              border: 1px solid #FF3B2F;
+              color: #FF3B2F;
+            }
+
+            .dataMode .switch .dim {
+              border: 1px solid #0003;
+              color: #0003;
+            }            
+
+            .dataMode.chosen .switch .chosen {
+              background: #000;
+              border: 1px solid #000;
+              color: #fff;
+            }
+            .navigation {
+              float: left;
+              margin-right: 3em;
+            }
+            .legend {
+              float: left;
+              max-width: 500px;
+              font: 400 18px/27px 'TT Norms';
+              padding: 0 2em 0 0;
+            }
+            .legend p {
+              margin: 0 0 2em 0;
+            }
+            .legend ul {
+              display: inline-block;
+              list-style-type: none;
+              margin: 0;
+              padding: 0;
+              background: #fff;
+              font-size: .8em;
+            }
+            .colorSample {
+              display: inline-block;
+              transform: translate(0,3px);
+              width: 16px;
+              height: 16px;
+              border-radius: 50%;
+              margin: 0 6px 0 0;
+            }
+            .controls {
+              position: absolute;
+              right: 20px;
+              bottom: 20px;
+              width: 32px;
+              height: 96px;
+              background: #fff;
+              box-shadow: 0 8px 40px #0162;
+              border-radius: 32px;
+            }
+
+            .controls .cKey{
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: 32px;
+              height: 32px;
+            }
+            .controls .cKey:hover{
+              background: #FFE81644;
+              cursor: pointer;
+            }
+            .controls .cPlus {
+              border-radius: 32px 32px 0 0;
+              border-bottom: 1px solid #0001;
+            }
+            .controls .cReset {
+              border-bottom: 1px solid #0001;
+            }
+            .controls .cMinus {
+              border-radius: 0 0 32px 32px;
+            }
+            
+
+        </style>
+    </head>
+  <body>
+      <canvas class="canvas"></canvas>
+      <div class="menuSwitch">⫶</div>
+      <div class="controls"></div>
+      <div class="dataModes">
+        <h1>Периодическая таблица<br>химических элементов<br> и карта изотопов</h1>
+        <div class="navigation">
+          <div class="dataMode" onclick="javascript:core.switchDataMode('clean')"><span class="hotkey enum">1</span><span class="modeName">Чистота</span></span></div>
+          <div class="dataMode lit" onclick="javascript:core.switchDataMode('groups')"><span class="hotkey enum">2</span><span class="modeName">Семейства</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('elneg')"><span class="hotkey enum">3</span><span class="modeName">Электроотрицательность</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('discovery')"><span class="hotkey enum">4</span><span class="modeName">Год открытия</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('halflife')"><span class="hotkey enum">5</span><span>Полураспад</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('electrons')"><span class="hotkey enum">6</span><span>Электронная конфигурация</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('radius')"><span class="hotkey enum">7</span><span>Радиус атома</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('decay')"><span class="hotkey enum">8</span><span>Главный тип распада</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('sAbu')"><span class="hotkey enum">9</span><span>В солнечной системе</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('cAbu')"><span class="hotkey enum">0</span><span>В земной коре</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('melt')"><span class="hotkey enum">q</span><span>Температура плавления</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('boil')"><span class="hotkey enum">w</span><span>Температура кипения</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('oxy')"><span class="hotkey enum">e</span><span>Степени окисления</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('binding')"><span class="hotkey enum">r</span><span>Энергия связи</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('excess')"><span class="hotkey enum">t</span><span>Дефект массы</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('psep')"><span class="hotkey enum">y</span><span>Энергия отделения протона</span></div>
+          <div class="dataMode" onclick="javascript:core.switchDataMode('nsep')"><span class="hotkey enum">u</span><span>Энергия отделения нейтрона</span></div>
+        </div>
+        <div class="legend">
+          Just a second...
+        </div>
+      </div>
+  </body>
+
+  <script type="text/javascript">
+
+  let core;
+    
+    window.onload = ()=>{
+
+      core = new Chemistry(document.querySelector('.canvas'), getElementsData(), getWords(), document.querySelector('.dataModes'), document.querySelector('.controls'));
+
+    }
+
+  </script>
+</html>

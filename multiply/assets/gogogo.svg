@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="36px" height="29px" viewBox="0 0 36 29" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 49.3 (51167) - http://www.bohemiancoding.com/sketch -->
+    <title>Arrow</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" stroke-linecap="round">
+        <g id="Lobby-Stats" transform="translate(-1351.000000, -940.000000)" stroke="#FFFFFF" stroke-width="4">
+            <g id="GOGOGO-Copy" transform="translate(1037.000000, 923.000000)">
+                <g id="Button">
+                    <g id="Arrow" transform="translate(316.000000, 19.000000)">
+                        <path d="M0,13 L32,13" id="Path-3"></path>
+                        <path d="M19,25 L32,13" id="Path-3-Copy-2"></path>
+                        <path d="M19,0 L32,13" id="Path-3-Copy"></path>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

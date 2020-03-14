@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Sun and stuff</title>
+        <script type="text/javascript" src="sun/generator.js"></script>        
+        <style>
+			@font-face {
+			    font-family: 'exo_2medium';
+			    src: url('sun/Exo2-Medium-webfont.eot');
+			    src: url('sun/Exo2-Medium-webfont.eot@') format('embedded-opentype'),
+			         url('sun/Exo2-Medium-webfont.woff') format('woff'),
+			         url('sun/Exo2-Medium-webfont.ttf') format('truetype'),
+			         url('sun/Exo2-Medium-webfont.svg') format('svg');
+			    font-weight: normal;
+			    font-style: normal;
+
+			}
+            body, html {margin:0; width: 100%; height: 100%; min-height: 700px; overflow: hidden; min-width: 100px}
+          	#thebox {position: absolute; top: 0px; left: 0px; width:100%; height: 100%;z-index: 1}
+          	.label {position: absolute;color:#fff;font-size:20px;z-index: 2; font-family: 'exo_2medium';width: 400px}
+          	@keyframes popper {
+          		0% {opacity: 0;}
+          		10% {opacity: 1;}
+          		80% {opacity: 1;}
+          		100% {opacity: 0;}
+          	}
+          	.popup {position: absolute; opacity: 0; background-color: rgba(0,0,0,.3);right: 10px;bottom: 10px;z-index: 2;color: rgb(255,255,255);font-family: 'exo_2medium';padding: 20px;animation: popper 5s; border-radius: .3rem}
+          	.popup span {font-size:.8rem;}
+          	.popup span span {display: inline-block; border:1px solid rgba(255,255,200,.5); padding: 0 .2rem;border-radius: .1rem;color: rgba(255,255,200,1)}
+        </style>
+</head>
+
+<body>
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+    (function (d, w, c) {
+        (w[c] = w[c] || []).push(function() {
+            try {
+                w.yaCounter24216865 = new Ya.Metrika({
+                    id:24216865,
+                    clickmap:true,
+                    trackLinks:true,
+                    accurateTrackBounce:true,
+                    webvisor:true
+                });
+            } catch(e) { }
+        });
+
+        var n = d.getElementsByTagName("script")[0],
+            s = d.createElement("script"),
+            f = function () { n.parentNode.insertBefore(s, n); };
+        s.type = "text/javascript";
+        s.async = true;
+        s.src = "https://mc.yandex.ru/metrika/watch.js";
+
+        if (w.opera == "[object Opera]") {
+            d.addEventListener("DOMContentLoaded", f, false);
+        } else { f(); }
+    })(document, window, "yandex_metrika_callbacks");
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/24216865" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->
+<canvas  id='thebox'>Чето говно!</canvas>
+		<script>
+			var core = {
+				fontName: 'exo_2medium',
+				ratio: window.devicePixelRatio,
+				canvas: document.getElementById("thebox"), 
+				realBias: {x:0,y:0},
+				maxDistance:0,
+				dt: 0,
+				lFrame: Date.now(),
+				tt: 0,
+				scale: 5,
+				timeScale: 1/86400,  // 1 for 1 day in a sec
+				realWindow: {},
+				scaleVelocity: 0,
+				scaleAcceleration: 0,
+				timeVelocity: 0,
+				timeAcceleration: 0,
+				panVelocity: 0,
+				panAcceleration: 0,
+				aStack: [],
+				saverPeriod: 0,
+				backColor: 'rgba(0,0,0,1)',
+				regions: [],
+				waypoint: -1,
+				cellSize: 384399,
+				showMoons: true
+			}
+			coreLoader();
+			var stuff = [];
+			var uiText;
+			var labels;
+			var popups = [];
+			var ctx    			= core.canvas.getContext('2d');
+
+			core.canvas.width 	= window.innerWidth*core.ratio;
+			core.canvas.height 	= window.innerHeight*core.ratio;
+			core.center = {x:core.canvas.width/2,y:core.canvas.height/2};
+			calculateRealWindow();
+
+			var isChanged = {
+				scale: function(){return Math.abs(core.scaleVelocity) > 0 || Math.abs(core.scaleAcceleration) > 0},
+				time: function(){return Math.abs(core.timeVelocity) > 0 || Math.abs(core.timeAcceleration) > 0}
+			}
+
+			function intro(){
+				if (core.scale >= 3 && core.realBias.y == 0){
+					animate(core,'scale',1,4,interCircOut);
+				}
+			}
+
+			function setWaypoint(thing){
+				if (core.waypoint < thing.id){
+					if (core.realWindow.top > thing.distance) {
+						core.waypoint = thing.id;
+						unlock(thing);
+					}
+				}
+			}
+
+			function unlock(thing){
+				popups.push(new Popup(thing));
+			}
+			function Popup(thing){
+				this.dom = document.createElement('div');
+				this.dom.innerHTML = uiText[7]+thing.name+'.<br /><span>'+uiText[8]+'&nbsp;<span>'+String.fromCharCode(thing.charCode)+'</span></span>';
+				this.dom.className = 'popup';
+				this.dom.addEventListener("animationend",function(){this.parentNode.removeChild(this); popups = []});
+				document.body.appendChild(this.dom);
+				
+			}
+
+			function coreSaver(period){
+				if (core.saverPeriod >= period){
+					var cargo = [core.realBias,core.timeScale,core.scale,core.maxDistance,core.tt,core.waypoint];
+					localStorage.setItem("Core",JSON.stringify(cargo));
+					core.saverPeriod = 0;
+				}
+				core.saverPeriod += core.dt;
+			}
+			function coreLoader(){
+				var cargo = JSON.parse(localStorage.getItem("Core"));
+				if (cargo != null && cargo[0] != undefined){
+					core.realBias = cargo[0];
+					core.timeScale = cargo[1];
+					core.scale = cargo[2];
+					core.maxDistance = cargo[3];
+					core.tt = cargo[4];
+					core.waypoint = cargo[5];
+				}
+			}
+
+			function calculateRealWindow(){
+				core.realWindow.top = core.realBias.y + toScale(core.center.y,true);
+				core.realWindow.bottom = core.realBias.y - toScale(core.center.y,true);
+			}
+
+			window.onresize = function(){
+				core.canvas.width 	= window.innerWidth*core.ratio;
+				core.canvas.height 	= window.innerHeight*core.ratio;
+				core.center			= {x:core.canvas.width/2,y:core.canvas.height/2};
+				calculateRealWindow();
+			}
+
+			function animate(thing,link,result,time,interpolator){
+				if (typeof result == 'string'){
+					var type = 1;
+					var v1 = thing[link].match(/^rgba\((\d+),(\d+),(\d+),(\d?.?\d+)\)$/);
+					var v2 = result.match(/^rgba\((\d+),(\d+),(\d+),(\d?.?\d+)\)$/);
+				} else {
+					var type = 0;
+					var v1 = thing[link];
+					var v2 = result;
+				}
+				core.aStack.push({type:type,thing:thing,t0:core.tt,t1:core.tt+time,tx:0,link:link,v1:v1,v2:v2,interpolator:interpolator ? interpolator : interLine});
+			}
+
+			var interLine = function (a,b,x){
+				a = a ? a : 0;
+				b = b ? b : 0;
+				return a*(1-x) + b*x;
+			}
+			function interExp(a,b,x,c){
+				var coeff = c ? c : .2;
+				var out = 0;
+				if (x<=.5){
+					out = (b-a) * Math.pow(2*x,1/coeff) / 2 + a;
+				} else if (x<=1) {
+					out = (b-a) * (1 - Math.pow(2*(1-x),1/coeff) / 2) + a;
+				} else {
+					out = b;
+				}
+				return out;
+			}
+			function interCircOut(a,b,x,c){
+				var coeff = c ? c : .22;
+				var out = 0;
+				if (x<1){
+					out = (b-a) * Math.sqrt(1-Math.pow(1-x,2)) + a;
+				} else {
+					out = b;
+				}
+				return out;
+			}
+
+			function frankenstein(){
+				for(i=0;i<core.aStack.length;i++){
+					var recalculate = true;
+					var ai = core.aStack[i];
+					if (core.tt <= ai.t1){
+						ai.tx = (core.tt - ai.t0) / (ai.t1 - ai.t0);
+						if (ai.type == 0){
+							ai.thing[ai.link] = ai.interpolator(ai.v1,ai.v2,ai.tx);
+						} else if (ai.type == 1){
+							console.log(ai);
+							var r = Math.round(ai.interpolator(+ai.v1[1],+ai.v2[1],ai.tx));
+							var g = Math.round(ai.interpolator(+ai.v1[2],+ai.v2[2],ai.tx));
+							var b = Math.round(ai.interpolator(+ai.v1[3],+ai.v2[3],ai.tx));
+							var a = ai.interpolator(+ai.v1[4],+ai.v2[4],ai.tx);
+							ai.thing[ai.link] = 'rgba('+r+','+g+','+b+','+a+')';
+						}
+					} else {
+						ai.thing[ai.link] = ai.v2;
+						core.aStack.splice(i,1);
+						i--;
+					}
+				}
+				if (typeof recalculate != undefined) calculateRealWindow();
+			}
+
+			function byThrees(str){
+				return str.replace(/(\d)(?=(\d{3})+([^\d]|$))/g,'$1 ');
+			}
+
+			function toScale(d,backwards){
+				return backwards ? d / (.0005 * core.ratio * core.scale) : d * .0005 * core.ratio * core.scale;
+			}
+			function goodTextSize(s){
+				return s * core.ratio;
+			}
+			function showDistance(){
+				var distance = Math.round(core.realBias.y) + uiText[5];
+				distance = byThrees(distance);
+
+				ctx.save();
+				ctx.fillStyle = 'rgba(255,255,255,.5)';
+				ctx.textBaseline = 'alphabetic';
+				ctx.textAlign = 'start';
+				ctx.font = goodTextSize(20)+'px '+core.fontName;
+				ctx.fillText(distance,0,core.canvas.height);
+				ctx.fillText(getRegion(),0,core.canvas.height-goodTextSize(20));
+				ctx.restore();
+			}
+			function showZT(){
+				var zoom = Math.round(toScale(1,true))+'';
+				var time = Math.round(core.timeScale*86400);
+				if (time < 60) {time = uiText[0]+time}
+				else if (time < 3600) {time = Math.round(time/60) + uiText[1]}
+				else if (time < 86400) {time = Math.round(time/3600) + uiText[2]}
+				else {time = Math.round(time/86400) + uiText[3]}
+				zoom = byThrees(zoom);
+
+				ctx.save();
+				ctx.fillStyle = 'rgba(255,255,255,.5)';
+				ctx.textBaseline = 'alphabetic';
+				ctx.textAlign = 'start';
+				ctx.font = goodTextSize(16)+'px '+core.fontName;
+				ctx.fillText(zoom+uiText[4],0,goodTextSize(16));
+				ctx.fillText(time,0,goodTextSize(16)*2);
+				ctx.restore();
+			}
+			function getRegion(){
+				var region = uiText[6];
+				core.regions.forEach(function (r){
+					if (core.realBias.y >= r.l1 && core.realBias.y <= r.l2) region = r.name; 
+				});
+				return region;
+			}
+			function getColor(){
+				var x = core.realBias.y / 4503443661;
+				if (x > 1) x = 1;
+				var colors = [{r:43,g:52,b:70},{r:0,g:0,b:6}]
+				return 'rgba('+Math.floor(interLine(colors[0].r,colors[1].r,x))+','+Math.floor(interLine(colors[0].g,colors[1].g,x))+','+Math.floor(interLine(colors[0].b,colors[1].b,x))+',1)';
+			}
+			function getVirtualY(position){
+				return toScale(core.realBias.y - position + toScale(core.center.y,true)) 
+			}
+			function getVirtualBias(){
+				return {x:toScale(-core.realBias.x),y:toScale(-core.realBias.y)};
+			}
+
+			function drawBackground(){
+				core.backColor = getColor();
+				ctx.fillStyle = core.backColor;
+				ctx.fillRect(0,0,core.canvas.width,core.canvas.height);
+				if (core.scale < 2){
+					var gridBias = {x:(core.realBias.x + toScale(core.center.x,true)) % core.cellSize,y: (core.realBias.y + toScale(core.center.y,true) - 149598261) % core.cellSize};
+					ctx.strokeStyle = 'rgba(255,255,255,.05)';
+					for (x=0;x<toScale(core.canvas.width,true);x+=core.cellSize){
+						ctx.beginPath();
+						ctx.moveTo(toScale(x+gridBias.x),0);
+						ctx.lineTo(toScale(x+gridBias.x),core.canvas.height);
+						ctx.stroke();
+					}
+					for (y=0;y<toScale(core.canvas.height,true);y+=core.cellSize){
+						ctx.beginPath();
+						ctx.moveTo(0,toScale(y+gridBias.y) - 1);
+						ctx.lineTo(core.canvas.width,toScale(y+gridBias.y) - 1);
+						ctx.stroke();
+					}
+				}
+				
+			}
+
+			function changeScale(s){
+				core.scale = s;
+			}
+			function updateScale(){
+				if (isChanged.scale()){
+					core.scaleVelocity += core.scaleAcceleration;
+					changeScale(core.scale + core.scaleVelocity);
+					//if (core.scale < .045) changeScale(.045);
+					if (core.scale < 1) changeScale(1);
+					if (core.scale > 1000) changeScale(1000);
+					core.scaleVelocity *= .96;
+					calculateRealWindow();
+				}
+			}
+			function jumpTo(thing){
+				animate(core.realBias,'y',thing.distance,5,interExp);
+			}
+			function updateTime(){
+				if (isChanged.time()){
+					core.timeVelocity += core.timeAcceleration;
+					core.timeScale += core.timeVelocity;
+					if (core.timeScale < 1/86400) core.timeScale = 1/86400;
+					if (core.timeScale > 30) core.timeScale = 30;
+					core.timeVelocity *= .9;
+				}
+			}
+			function updatePan(){
+				core.panVelocity += core.panAcceleration;
+				core.realBias.y += core.panVelocity * core.dt;
+				if (core.realBias.y < 0) core.realBias.y = 0;
+				//core.panVelocity *= .9;
+				//core.panAcceleration = 0;
+			}
+			function updateMaxDistance(){
+				if (core.realBias.y > core.maxDistance) core.maxDistance = core.realBias.y;
+			}
+			function farthestMoon(moons){
+				var max = 0;
+				moons.forEach(function(m){
+					var orbit = m.orbit;
+					max = orbit > max ? orbit : max;
+				});
+				return max;
+			}
+
+			var Planet = function(id,charCode,name,type,radius,distance,color,moons,rings){
+				this.id = id;
+				this.charCode = charCode;
+				this.name = name;
+				this.type = type;
+				this.radius = radius;
+				this.distance = distance;
+				this.color = color;
+				this.moons = moons ? moons : false;
+				this.rings = rings ? rings : false;
+				this.farthestMoon = !moons ? 0 : farthestMoon(moons);
+				this.boundary = {
+					top: this.distance + this.farthestMoon + this.radius,
+					bottom: this.distance - this.farthestMoon - this.radius
+				};
+			}
+			Planet.prototype.draw = function(){
+				//var spotY = toScale(core.center.y,1) - core.realBias.y + this.distance;
+				if (this.boundary.top >= core.realWindow.bottom && this.boundary.bottom <= core.realWindow.top){
+					setWaypoint(this);
+					ctx.save();
+					ctx.translate(core.center.x,getVirtualY(this.distance));
+					if (this.rings){
+						this.rings.forEach(function(r){
+							ctx.save()
+							ctx.fillStyle = r.color;
+							ctx.beginPath();
+							ctx.arc(0,0,toScale(r.x2),0,2*Math.PI);
+							ctx.closePath();
+							ctx.fill();
+							ctx.fillStyle = getColor();
+							ctx.beginPath();
+							ctx.arc(0,0,toScale(r.x1),0,2*Math.PI);
+							ctx.closePath();
+							ctx.fill();
+							ctx.restore();
+						});
+					}
+					ctx.fillStyle = this.color;
+					ctx.beginPath();
+					ctx.arc(0,0,toScale(this.radius),0,2*Math.PI);
+					ctx.closePath();
+					ctx.fill();
+					ctx.font = goodTextSize(30)+'px '+core.fontName;
+					ctx.textBaseline = 'middle';
+					if (this.radius*4 > toScale(core.center.x,true)){
+						ctx.textAlign = 'center';
+						ctx.fillStyle = core.backColor;
+						ctx.fillText(this.name,0,0);
+						ctx.font = goodTextSize(14)+'px '+core.fontName;
+						ctx.fillText(this.type,0,goodTextSize(24));
+					} else {
+						ctx.fillText(this.name,toScale(this.radius) + goodTextSize(40),0);
+						ctx.font = goodTextSize(14)+'px '+core.fontName;
+						ctx.fillText(this.type,toScale(this.radius) + goodTextSize(40),goodTextSize(24));
+					}
+					if (this.moons && toScale(this.radius) > 1){
+						var fontSize = goodTextSize(15);
+						var margin = -1000;
+						var planetDistance = this.distance;
+
+						var top = core.realWindow.top + toScale(core.center.y,true);
+						var bottom = core.realWindow.bottom - toScale(core.center.y,true);
+
+						this.moons.forEach(function(m){
+							m.angle += core.dt * core.timeScale * 2 * Math.PI / m.period;
+							var mTop = planetDistance + m.orbit;
+							var mBottom = planetDistance - m.orbit;
+							if ((mTop >= bottom && mTop <= top) || (mBottom <= top && mBottom >= bottom || m.orbit < toScale(core.center.x,true))){   // PEREDELAT!
+								var dY = toScale(m.orbit + m.radius);
+								var minMargin = margin + fontSize;
+								if (dY < minMargin){
+									margin = minMargin;
+									dY = margin;
+								} else {
+									margin = dY;
+								}
+								ctx.fillStyle = m.color;
+								ctx.save()
+									if (core.showMoons){
+										ctx.font = fontSize+'px '+core.fontName;
+										ctx.textAlign = 'center';
+										ctx.fillText(m.name,0,dY + goodTextSize(10));
+										ctx.strokeStyle = 'rgba(255,255,255,.1)';
+										ctx.beginPath();
+										if (m.orbit > toScale(core.center.x,true)){
+											alpha = Math.asin(toScale(core.center.x,true) / m.orbit);
+											if (alpha < .0003) alpha = .0003;
+											ctx.arc(0,0,toScale(m.orbit),-Math.PI/2 - alpha,-Math.PI/2 + alpha);
+											ctx.arc(0,0,toScale(m.orbit),Math.PI/2 - alpha,Math.PI/2 + alpha);
+											
+										} else {
+											ctx.arc(0,0,toScale(m.orbit),0,Math.PI*2);
+										}
+										ctx.stroke();
+									}
+									ctx.rotate(m.angle);
+									ctx.beginPath();
+									ctx.arc(toScale(m.orbit),0,toScale(m.radius),0,2*Math.PI);
+									ctx.closePath();
+									ctx.fill();	
+								ctx.restore()
+							}
+						})
+					} 
+					ctx.restore();
+				}
+			}
+			var Moon = function(name,radius,orbit,color,period){
+				this.name = name;
+				this.radius = radius;
+				this.orbit = orbit;
+				this.color = color;
+				this.period = period;
+				this.angle = Math.PI * .5;
+			}
+			var Ring = function(x1,x2,color){
+				this.x1 = x1;
+				this.x2 = x2;
+				this.color = color;
+			}
+
+			var Sunshine = function(radius){
+				this.radius = radius;
+				this.color = 'rgba(255,255,85,1)';
+			}
+
+			var Sunshines = function(star){
+				this.stack = [];
+				this.period = 3;
+				this.clock = this.period;
+				this.radius = star.radius;
+				this.maxRadius = this.radius * 5;
+				this.velocity = 299792.458;
+				this.draw = function(){
+					if (core.timeScale < .001 && toScale(this.maxRadius)+getVirtualBias().y+core.center.y > 0){				//PEREDELAT!!!
+						this.clock += core.dt;
+						if (this.clock >= this.period){
+							this.stack.push(new Sunshine(this.radius));
+							this.clock = 0;
+						}
+						for (i=0;i<this.stack.length;i++){
+							var s = this.stack[i];
+							var spotY = core.center.y - getVirtualBias().y;
+							s.radius += this.velocity * core.dt * core.timeScale * 86400;
+							s.color = 'rgba(255,255,190,'+(1-(s.radius - 0.696e6)/(this.maxRadius-0.696e6))/10+')';
+							if (s.radius < this.maxRadius){
+								if (spotY + toScale(this.maxRadius) > 0){
+									ctx.save();
+									ctx.translate(core.center.x,spotY);
+									ctx.beginPath();
+									ctx.fillStyle = s.color;
+									ctx.arc(0,0,toScale(s.radius),0,Math.PI*2);
+									ctx.fill();
+									ctx.restore();
+								}
+							} else {
+								this.stack.splice(i,1);
+								i--;
+							}
+						
+						}
+					}
+				}
+			}
+
+			var Label = function(text,dX,absY,color,range,isSmart){
+				this.text = text;
+				this.dX = dX;
+				this.absY = absY; 
+				this.color = color;
+				this.font = goodTextSize(20)+'px '+core.fontName;
+				this.range = range;
+				this.tag = document.createElement('div');
+				this.isSmart = isSmart;
+				if (!this.isSmart) this.tag.innerHTML = this.text;
+				this.tag.className = 'label';
+				document.body.appendChild(this.tag);
+			}
+			var Labels = function(){
+				this.stack = [];
+				this.draw = function(){
+					var top = core.realWindow.top + toScale(core.center.y,true);
+					var bottom = core.realWindow.bottom;
+					this.stack.forEach(function(l){
+						if (l.absY < top && l.absY > bottom && core.scale > .2) {
+							if (l.tag.style.display == 'none') l.tag.style.display = 'block';
+							l.tag.style.top = getVirtualY(l.absY)/core.ratio + 'px';
+							l.tag.style.left = l.dX * core.canvas.width / core.ratio + 'px';
+							l.tag.style.color = l.color;
+							if (l.isSmart) {
+								l.tag.innerHTML = l.text();
+							}
+						} else {
+							l.tag.style.display = 'none';
+						}
+					})
+				};
+			}
+
+			generateSolarSystem('ru');
+			intro();
+
+			window.addEventListener("keydown",function(event){
+				//console.log(event.which);
+					if (event.keyCode == 187 || event.keyCode == 61) core.scaleAcceleration = .001 * core.scale;
+					if (event.keyCode == 189 || event.keyCode == 173) core.scaleAcceleration = -.0005 * core.scale;
+					if (event.keyCode == 219) core.timeAcceleration = -.0024 * core.timeScale;
+					if (event.keyCode == 221) core.timeAcceleration = .01 * core.timeScale;
+
+					if (event.keyCode == 38) {
+						core.panVelocity = core.panVelocity == 299792.458 ? 0 : 299792.458;
+						if (core.timeScale > 1/86400) animate(core,'timeScale',1/86400,2,interCircOut);
+					}
+					if (event.keyCode == 83) {
+						core.showMoons = core.showMoons ? false : true;
+					}
+				});
+				window.addEventListener("keyup",function(event){
+					if (event.keyCode == 187 || event.keyCode == 189 || event.keyCode == 61 || event.keyCode == 173) core.scaleAcceleration = 0;
+					if (event.keyCode == 219 || event.keyCode == 221) core.timeAcceleration = 0;
+				});
+
+			window.addEventListener("keydown",function(event){
+				stuff.forEach(function(p){
+					if (p.charCode == event.which){
+						if (core.waypoint >= p.id) jumpTo(p);
+					} else if (event.which == 57){
+						animate(core.realBias,'y',core.maxDistance,5,interExp);
+					}
+				})
+			})
+
+			window.addEventListener("wheel",function(e){
+				//console.log(e);
+				if (core.aStack.length > 0) core.aStack = [];
+				var delta = Math.min(Math.abs(e.deltaY),500)*Math.sign(e.deltaY);
+				core.realBias.y -= toScale(delta,true);
+				//core.panAcceleration -= toScale(delta,true)*6;
+				calculateRealWindow();
+			});
+
+			(function render(){
+				var now = Date.now();
+				core.dt = (now - core.lFrame)/1000;
+				core.tt += core.dt;
+				frankenstein();
+				updatePan();
+				updateTime();
+				updateScale();
+				updateMaxDistance();
+				drawBackground();
+				sunshine.draw();
+				stuff.forEach(function(p){
+					p.draw();
+				});
+				labels.draw();
+				showDistance();
+				showZT();
+				coreSaver(1);
+				core.lFrame = now;
+				requestAnimationFrame(render);
+			})();
+
+		</script>
+</body>
+</html>

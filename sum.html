@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Таблица сложения</title>
+        <script src="sum/assets/alive.js"></script>
+        <!-- <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1"> -->
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; font-family: -apple-system, Helvetica, sans-serif; min-height: 700px; overflow: hidden; min-width: 700px; }
+            #half1, #half2{
+            	position: absolute;
+            	left:0;
+            	top:0;
+            }
+            #header {
+            	position: absolute;
+            	left:45%;
+            	width:45%;
+            	height: 100%;
+            	text-align: left;
+            	min-height: 400px;
+            	z-index: 2;
+            }
+            #header h1{
+            	font-size: 1.4rem;
+            	font-weight: 600;
+            	margin: 0 0 3rem;
+            }
+            #header p{
+            	font-size: .8rem;
+            	line-height: 1.3rem
+            }
+            #header #stats{
+            	margin:2rem 0 0;
+            }
+            #header #stats p{
+            	font-size: .6rem;
+            	margin:0;
+            }
+            #banner{
+            	position: absolute;
+            	top:0;
+            	left:-90%;
+            	width: 80%;
+            }
+            #banner img {
+            	width:80%;
+            	margin: 0 0 0 10%;
+            }
+            #container {
+            	position: absolute;
+            	width:100%;
+            	height: 100%;
+            }
+            #container div {
+            	position: absolute;
+            	text-align: center;
+            	font-size: 1rem;
+            	display: flex;
+            	justify-content: center;
+            	align-items: center;
+            	z-index: 2;
+            }
+           #hint{
+            	position: absolute;
+            	background: rgba(0,0,40,.8);
+            	color: #fff;
+            	font-size: .8rem;
+            	width: 140px;
+            	height: 60px;
+            	text-align: left;
+            	pointer-events: none;
+            	box-shadow: 0 8px 30px rgba(0,0,40,.08);
+            	border-radius: 2px;
+            	justify-content: center;
+            	align-items: center;
+            	display: none;
+            }
+            #mark {
+            	position: absolute;
+            	width: 4px;
+            	height: 4px;
+            	border-radius: 2px;
+            	background: rgba(0,0,40,.3);
+            	pointer-events: none;
+            	display: none;
+            }
+            #example{
+            	position: absolute;
+            	font-size: 6rem;
+            	font-weight: 400;
+            	width: 100%;
+            	height: 100%;
+            	display: flex;
+            	justify-content: center;
+            	align-items: center;
+            	opacity: 0;
+            	z-index: 1;
+            	display: none;
+            }
+            #flasher{
+            	position: absolute;
+            	top:0;
+            	left:0;
+            	width: 100%;
+            	height: 100%;
+            	background: #fff;
+            	opacity: 0;
+            }
+            #credits{
+            	position: absolute;
+            	bottom: 0;
+            	font-size: .6rem;
+            }
+ 
+            #numpad{
+            	display: block;
+            	position: absolute;
+            	top:-300px;
+            	width:1px;
+            	height:1px;
+            }
+            input[type='tel'],input[type='tel']:focus{
+            	font-size:160px;
+            }
+            #singles{
+            	position: absolute;
+            	left:0;
+            	top:0;
+            	background: #f00;
+            	width:100%;
+            	height:1rem
+            }
+            #canvas {
+            	width: 100%;
+            	height: 100%;
+            }
+        </style>
+</head>
+
+<body>
+<div id = "flasher"></div>
+<div id = "half1">
+	<div id = "header" style="opacity: 0">
+		<div id = "banner"></div>
+		<h1 id = "headerh1">Это таблица умножения</h1>
+		<p id = "headertext">Её нужно запомнить один раз — это сильно упростит жизнь, проблемы уйдут сами собой, а волосы станут мягкими и шелковистыми.</p>
+		<div id = "stats">
+			<p>Примеров решено: <span id = "totalCount">0</span></p>
+			<p>Комбо без ошибок: <span id = "combo">0</span></p>
+			<p>Среднее время на ответ: <span id = "atime">0</span></p>
+			<p>Нелюбимый пример: <span id = "worst">0</span></p>
+		</div>
+		<div id = "credits">Версия 0.2 — Йорли Аксес&nbsp;&nbsp;&nbsp;<a href="sum.html#" onclick = "drop();">Сбросить результаты</a></div>
+	</div>
+</div>
+<div id = "half2">
+	<div id = "container">
+		<canvas id = "canvas"></canvas>
+	</div>
+</div>
+<div id ="hint"></div>
+<div id ="mark"></div>
+<div id = "example">7 × 5 = </div>
+<input id="numpad" type="tel">
+<script>		
+	var core = {
+		ratio : window.devicePixelRatio,
+		lt : Date.now(),
+		dt : 0,
+		tt : 0,
+		resources : [],
+		loaded: false,
+		storage : [],
+		animations : [],
+		mode : -1,
+		example : document.getElementById('example'),
+		header : document.getElementById('header'),
+		container : document.getElementById('container'),
+		flasher : document.getElementById('flasher'),
+		numpad : document.getElementById('numpad'),
+		hint : alive.select('hint'),
+		mark : alive.select('mark'),
+		canvas : alive.select('canvas'),
+		ctx : alive.select('canvas').getContext('2d'),
+		cellSize : 0,
+		currentExample : false,
+		input : '',
+		totalCount : 10,
+		count : 0,
+		combo : 0,
+		defaultWeight : 100,
+		grade : 0,
+		goodTime : 5000,
+		penalty : 2000,
+		justFired : false,
+		sortedStorage : []
+	};
+	function mapNumber(num,from,to,mFrom,mTo,interpolation){
+					if (interpolation == 'CubeDecel'){
+						return mFrom + (mTo - mFrom)*interCubeDecel((num - from)/(to - from));
+					} else if (interpolation == 'CubeAccel'){
+						return mFrom + (mTo - mFrom)*interCubeAccel((num - from)/(to - from));
+					} else {
+						return mFrom + (mTo - mFrom)*(num - from)/(to - from);
+					};
+			};
+
+	function mapColor(num,from,to,rs,gs,bs,rf,gf,bf){
+			var r = Math.floor(mapNumber(num,from,to,rs,rf));
+			var g = Math.floor(mapNumber(num,from,to,gs,gf));
+			var b = Math.floor(mapNumber(num,from,to,bs,bf));
+			r = r < 0 ? 0 : r > 255 ? 255 : r;
+			g = g < 0 ? 0 : g > 255 ? 255 : g;
+			b = b < 0 ? 0 : b > 255 ? 255 : b;
+			return 'rgba('+r+','+g+','+b+',1)';
+	};
+
+	var Resource = function(link,name){
+				this.id = core.resources.length;
+				this.img = new Image();
+				this.img.src = link;
+				this.img.resource = this;
+				this.name = name ? name : 'Resource number '+this.id;
+				this.isReady = false;
+				this.img.onload = function(){
+					console.log('Resource #'+this.resource.id+' ('+this.resource.name+') is ready');
+					this.resource.isReady = true;
+				};
+			};
+	core.resources.push(new Resource('assets/lvl0.png','Elementary'));
+	core.resources.push(new Resource('assets/lvl1.png','No joke'));
+	core.resources.push(new Resource('assets/lvl2.png','On my way'));
+	core.resources.push(new Resource('assets/lvl3.png','Coming storm'));
+	core.resources.push(new Resource('assets/lvl4.png','War'));
+	core.resources.push(new Resource('assets/lvl5.png','Survival'));
+	core.resources.push(new Resource('assets/lvl6.png','Another world'));
+	core.resources.push(new Resource('assets/lvl7.png','When all hell broke loose'));
+
+	core.grades = [
+			{
+				id : 0,
+				header : 'Глава 1: Элементарно',
+				text : 'Сначала нужно привыкнуть к самым простым примерам: запомнить сумму чисел в пределах десяти. Жми энтер или тыкай в экран, если в него можно тыкать!',
+				image : core.resources[0].img
+			},
+			{
+				id : 1,
+				header : 'Глава 2: Шутки в сторону',
+				text : 'Теперь примеры станут чуть сложнее. Лучше всего их просто запомнить. Чем быстрее их решаешь, тем проще будет вплоть до института.',
+				image : core.resources[1].img
+			},
+			{
+				id : 2,
+				header : 'Глава 3: На пути к&nbsp;совершенству',
+				text : 'Теперь можно передохнуть. Ты можешь увидеть большие числа, но считать их будет не сложнее, чем маленькие.',
+				image : core.resources[2].img
+			},
+			{
+				id : 3,
+				header : 'Глава 4: Грядущая буря',
+				text : 'По-настоящему трудные примеры уже близко. Пора размяться по-серьезному. Чтобы пройти дальше, нужно решать без ошибок. Это быстрее, чем спешить, но ошибаться.',
+				image : core.resources[3].img
+			},
+			{
+				id : 4,
+				header : 'Глава 5: На поле сложений',
+				text : 'Мы знаем на что способен твой мозг. Теперь нужно вспомнить всё и выложиться по полной.',
+				image : core.resources[4].img
+			},
+			{
+				id : 5,
+				header : 'Глава 6: Выживание',
+				text : 'Недостаточно сложно? Всё, что было до этого покажется ерундой. С этого момента начинается настоящая математика',
+				image : core.resources[5].img
+			},
+			{
+				id : 6,
+				header : 'Глава 7: Другой мир',
+				text : 'Не смотря на большие числа, тут не так сложно, как можно предположить. Но не стоит расслабляться — на горизонте виднеется что-то финальное и не сравнимое по трудности со всем остальным.',
+				image : core.resources[6].img
+			},
+			{
+				id : 7,
+				header : 'Глава 8: Нереальное адищще невозможности',
+				text : 'Квинтэссенция безумия, закрученная в оболочку чисел и знаков. Огнедыщащая бездна сверхсумасшедших примеров. Решить всё под силу только настоящим героям. Тебе?',
+				image : core.resources[7].img
+			}
+
+		];
+	for (i=0; i<core.grades.length;i++){
+		core.sortedStorage.push([]);
+	}
+
+	var Cell = function(a,b,weight,timesShown,lastFired,lastTime){
+		this.a = a;
+		this.b = b;
+		this.firstDigitA = +(a+'')[0];
+		this.firstDigitA = +(b+'')[0];
+		this.lastDigitA = a < 10 ? a : +(a+'')[1];
+		this.lastDigitB = b < 10 ? b : +(b+'')[1];
+		this.c = a+b;
+		this.string = a+' + '+b+' = '; //⋅×
+		this.weight = weight || core.defaultWeight;
+		this.timesShown = timesShown || 0;
+		this.lastFired = lastFired || false;
+		this.lastTime = lastTime || false;
+		if ((this.a+'').length == 2 && (this.b+'').length == 2){
+			this.numberOfDoubles = 2;
+		} else if ((this.a+'').length == 2 || (this.b+'').length == 2){
+			this.numberOfDoubles = 1;
+		} else {
+			this.numberOfDoubles = 0;
+		}
+
+		var isSingles = this.a <= 10 && this.b <= 10,
+			have1 = this.a == 1 || this.b == 1,
+			isMixed = (this.a > 10 || this.b > 10) && (this.a <= 10 || this.b <= 10),
+			isDoubles = this.a > 10 && this.b > 10,
+			isWithin10 = this.c <= 10,
+			isWithin20 = this.c <= 20,
+			isWithin100 = this.c <= 100,
+			isOver1 = this.lastDigitA + this.lastDigitB > 10,
+			isOver10 = this.a > 10 && this.b > 10 && this.a - this.lastDigitA + this.b - this.lastDigitB > 100;
+
+		if (isSingles && isWithin10) {this.grade = 0}
+		else if (isSingles && !isWithin10) {this.grade = 1}
+		else if ((this.a % 10 == 0 && this.b % 10 == 0) || have1 || ((this.a % 10 == 0 || this.b % 10 == 0) && isMixed)) {this.grade = 2}
+		else if (isMixed && !isOver1) {this.grade = 3}
+		else if (isWithin100 && !isOver1) {this.grade = 4}
+		else if (isWithin100 && isOver1) {this.grade = 5}
+		else if (!isOver1 || isMixed) {this.grade = 6}
+		else if (isOver1) {this.grade = 7}
+		else {this.grade = 0}
+
+		core.sortedStorage[this.grade].push(this);
+	};
+
+	function createStorage(){
+		var memory = JSON.parse(localStorage.getItem('Sum'));
+		core.combo = +localStorage.getItem('Combo_s') || 0;
+		core.grade = +localStorage.getItem('Grade_s') || 0;
+		for (i=0;i<10000;i++){
+				if (memory){
+					core.storage.push(new Cell(Math.floor(i/100) + 1,i%100 + 1,memory[i].weight,memory[i].timesShown,memory[i].lastFired,memory[i].lastTime));
+				} else {
+					core.storage.push(new Cell(Math.floor(i/100) + 1,i%100 + 1));
+				}
+		}
+		if (memory) console.log('Loaded data from local storage');
+	};
+
+	function buildTable(){
+		if (core.storage.length == 0){
+			createStorage();
+		} 
+		updateCells();
+	};
+
+	function calculateStats(){
+		var totalCount = 0;
+		var aTime = 0;
+		var activeExamples = 0;
+		var worst = {weight:0,string:'Еще не встречался'};
+		for (i=0;i<core.storage.length;i++){
+			totalCount += core.storage[i].timesShown;
+			if (core.storage[i].lastTime){
+				activeExamples ++;
+				aTime += core.storage[i].lastTime;
+				if (core.storage[i].weight > worst.weight) {
+					worst.weight = core.storage[i].weight;
+					worst.string = worst.weight > core.defaultWeight ? core.storage[i].string + '' + core.storage[i].c : 'Все любимые';
+				};
+			}
+		}
+		aTime = activeExamples > 0 ? Math.round(aTime / activeExamples)/1000+' с' : 'Еще не посчиталось'; 
+		document.getElementById('totalCount').innerHTML = totalCount;
+		document.getElementById('combo').innerHTML = core.combo;
+		document.getElementById('atime').innerHTML = aTime;
+		document.getElementById('worst').innerHTML = worst.string;
+	};
+
+	function updateGrade(){
+		
+		if (core.grade == 0){
+			var promote = true;
+			for (i=0;i<core.sortedStorage[0].length;i++){
+				if (core.sortedStorage[0][i].weight > 50) promote = false;
+			}
+			if (promote) core.grade = 1;
+		};
+		if (core.grade == 1){
+			var promote = true;
+			for (i=0;i<core.sortedStorage[1].length;i++){
+				if (core.sortedStorage[1][i].weight > 50) promote = false;
+				//console.log(core.sortedStorage[1][i].weight);
+			}
+			if (promote) core.grade = 2;
+		};
+		if (core.grade == 2){
+			var promote = 0;
+			for (i=0;i<core.sortedStorage[2].length;i++){
+				if (core.sortedStorage[2][i].timesShown > 0) promote++;
+				if (core.sortedStorage[2][i].weight > 100) promote -= 30;
+			}
+			if (promote > 30) core.grade = 3;
+		};
+		if (core.grade == 3){
+			var promote = 0;
+			for (i=0;i<core.sortedStorage[3].length;i++){
+				if (core.sortedStorage[3][i].timesShown > 0) promote++;
+				if (core.sortedStorage[3][i].weight > 100) promote -= 50;
+			}
+			if (promote > 50) core.grade = 4;
+		}
+		if (core.grade == 4){
+			var promote = 0;
+			for (i=0;i<core.sortedStorage[4].length;i++){
+				if (core.sortedStorage[4][i].timesShown > 0) promote++;
+				if (core.sortedStorage[4][i].weight > 100) promote -= 50;
+			}
+			if (promote > 50) core.grade = 5;
+		}
+		if (core.grade == 5){
+			var promote = 0;
+			for (i=0;i<core.sortedStorage[5].length;i++){
+				if (core.sortedStorage[5][i].timesShown > 0) promote++;
+				if (core.sortedStorage[5][i].weight > 100) promote -= 50;
+			}
+			if (promote > 50) core.grade = 6;
+		}
+		if (core.grade == 6){
+			var promote = 0;
+			for (i=0;i<core.sortedStorage[6].length;i++){
+				if (core.sortedStorage[6][i].timesShown > 0) promote++;
+				if (core.sortedStorage[6][i].weight > 100) promote -= 50;
+			}
+			if (promote > 50) core.grade = 7;
+		}
+
+		//core.grade = 5;
+
+		document.getElementById('headerh1').innerHTML = core.grades[core.grade].header;
+		document.getElementById('headertext').innerHTML = core.grades[core.grade].text;
+		document.getElementById('banner').innerHTML = '';
+		document.getElementById('banner').appendChild(core.grades[core.grade].image);
+	};
+
+	function updateCells(){
+
+		//drawSingles();
+
+		// This code draws full table with all posible examples
+		/*
+		
+		for (i=0; i < core.storage.length; i++){
+				var div = core.container.children[i] || document.createElement('div');
+				//div.innerHTML = core.storage[i].c;
+
+				var hint;
+				if (div.children.length == 0){
+					hint = document.createElement('div');
+					hint.className = 'hint';
+				} else {
+					hint = div.children[0];
+				};
+
+				hint.innerHTML = core.storage[i].string + core.storage[i].c + '<br />Сложность: ' + (core.storage[i].grade+1) + '<br />' + (core.storage[i].timesShown > 0 ? 'Встречался '+core.storage[i].timesShown+ ([2,3,4].indexOf(core.storage[i].timesShown%10) != -1 ? ' раза' : ' раз') : 'Не встречался');
+				div.appendChild(hint);
+
+		
+				updateLayout();
+				div.style.top = Math.floor(i/100) * (100/100) + '%';
+				div.style.left = i%100 * (100/100) + '%';
+				div.style.width = (100/100)+'%';
+				div.style.height = (100/100)+'%';
+
+				if (core.storage[i].lastTime){
+					if (core.storage[i].weight > core.defaultWeight){
+						div.style.background = mapColor(core.storage[i].weight,100,10000,255,214,186,226,6,48);
+					} else if (core.storage[i].weight > 1){
+						div.style.background = mapColor(core.storage[i].weight,0,100,144,236,123,227,255,208);
+					} else {
+						div.style.background = 'rgb(255,242,96)';
+						//div.style.background = 'url("./assets/star.svg") 5px 3px / ' + (core.cellSize-10) + 'px ' + (core.cellSize-10) + 'px no-repeat';
+					}
+				} else {
+					div.style.background = mapColor(core.storage[i].grade,0,8,240,240,240,220,220,255);//'rgb(255,255,255)';
+					//div.style.background = 'rgb(255,255,255)';
+				}
+				div.style.opacity = 0;
+				if (!core.container.children[i]) core.container.appendChild(div);
+		}
+		
+		*/
+
+
+		updateLayout();
+		core.canvas.width = core.container.offsetWidth*core.ratio;
+		core.canvas.height = core.container.offsetHeight*core.ratio;
+		core.cellSize = Math.floor(core.canvas.width / 100)/core.ratio;
+
+		for (i=0; i < core.storage.length; i++){
+			if (core.storage[i].lastTime){
+				if (core.storage[i].weight > core.defaultWeight){
+						core.ctx.fillStyle = mapColor(core.storage[i].weight,100,10000,255,214,186,226,6,48);
+					} else if (core.storage[i].weight > 1){
+						core.ctx.fillStyle = mapColor(core.storage[i].weight,0,100,144,236,123,227,255,208);
+					} else {
+						core.ctx.fillStyle = 'rgb(255,242,96)';
+					}
+			} else {
+				core.ctx.fillStyle = mapColor(core.storage[i].grade,0,8,240,240,240,220,220,255);
+			}
+			core.ctx.fillRect(core.cellSize*core.ratio*(i%100),core.cellSize*core.ratio*Math.floor(i/100),core.cellSize*core.ratio,core.cellSize*core.ratio);
+		}
+
+		calculateStats();
+		updateGrade();
+	}
+
+	function updateLayout(){
+		var hRatio = .5;
+		var vRatio = .6;
+		var minMarginH = window.innerHeight * .1;
+		var minMarginV = window.innerWidth * .1;
+		var one = document.getElementById('half1');
+		var two = document.getElementById('half2');
+		if (window.innerWidth > window.innerHeight){
+			var margin = Math.max(minMarginH,(window.innerHeight - Math.min(window.innerHeight,window.innerWidth * hRatio))*.5);
+			one.style.width = 100 - hRatio*100 + '%';
+			two.style.left = 100 - hRatio*100 + '%';
+			one.style.top = two.style.top = margin + 'px';
+			one.style.left = '0';
+			one.style.height = two.style.width = two.style.height = window.innerHeight - margin * 2 + 'px';
+		} else {
+			var margin = Math.max(minMarginV,(window.innerWidth - Math.min(window.innerWidth,window.innerHeight * vRatio))*.5);
+			one.style.height = 100 - vRatio*100 - 10 + '%';
+			two.style.top = 100 - vRatio*100 + '%';
+			two.style.left = margin + 'px';
+			one.style.left = '0px'
+			one.style.top = '5%';
+			one.style.width = window.innerWidth - margin + 'px';
+			two.style.width = two.style.height = window.innerWidth - margin * 2 + 'px';
+		}
+	}
+	window.onresize = function(e){
+		updateLayout();
+	};
+
+	function fireExample(){
+		var cauldron = [];
+		for (i=0;i<core.storage.length; i++){
+			if (core.storage[i] != core.justFired && core.storage[i].grade == core.grade){
+				for (j=0;j<core.storage[i].weight;j++){
+					cauldron.push(core.storage[i]);
+				}
+			}
+		}
+		var finger = Math.floor(Math.random()*cauldron.length);
+		core.input = '';
+		core.currentExample = cauldron[finger];
+		core.justFired = core.currentExample;
+		core.currentExample.timesShown ++;
+		core.currentExample.lastFired = Date.now();
+		core.example.innerHTML = core.currentExample.string;
+		exampleSlideIn();
+	};
+
+	if (typeof localStorage === 'object') {
+	    try {
+	        localStorage.setItem('localStorage', 1);
+	        localStorage.removeItem('localStorage');
+	    } catch (e) {
+	        Storage.prototype._setItem = Storage.prototype.setItem;
+	        Storage.prototype.setItem = function() {};
+	        alert('Кажется, браузер сейчас в так называемом частном режиме. Чтобы результаты сохранялись, нужно его выключить. Ну или не выключать и начинать каждый раз сначала.');
+	    }
+	};
+
+	function acceptKey(key){
+		var correct = core.currentExample.c.toString();
+		if (key in [1,2,3,4,5,6,7,8,9,0]){
+			core.input += key;
+			core.example.innerHTML += key;
+		}
+		if (core.input.length == correct.length) {
+			core.currentExample.lastTime = Date.now() - core.currentExample.lastFired;
+			if (core.input == correct){ 	// GOOD
+				flash(true);
+				core.combo ++;
+				if (core.currentExample.lastTime <= core.goodTime + core.currentExample.grade*1000){
+					core.currentExample.weight /= 2;
+					if (core.currentExample.lastTime <= core.goodTime / 2){
+						core.currentExample.weight -= 4;
+						if (core.currentExample.weight < 1) core.currentExample.weight = 1;
+					}
+				} else {
+					core.currentExample.weight += mapNumber(core.currentExample.lastTime,core.goodTime+core.currentExample.grade*1000,(core.goodTime+core.currentExample.grade*1000)*5,0,core.penalty);
+				}
+			} else {						// BAD
+				flash(false);
+				core.combo = 0;
+				core.currentExample.weight += core.penalty;		
+			};
+			localStorage.setItem('Sum', JSON.stringify(core.storage));
+			localStorage.setItem('Combo_s', core.combo);
+			localStorage.setItem('Grade_s', core.grade);
+			core.count ++;
+			if (core.count >= core.totalCount){
+				switchMode(0);
+			} else {
+				exampleSlideOut(fireExample);
+			}
+		}
+	};
+
+	function switchMode(signal){
+		if (core.mode != 0 && signal == 0){
+			core.count = 0;
+			core.justFired = false;
+			core.mode = 0;
+			if (core.isMobile) core.numpad.blur();
+			updateCells();
+			if (core.currentExample){
+				exampleSlideOut(revealSequence);
+			} else {
+				revealSequence();
+			}
+			
+		} else if (core.mode != 1 && signal == 1){
+			core.header.style.marginLeft = '0px';
+			document.getElementById('banner').style.marginLeft = '0px';
+			alive.animate('banner','margin-left','-100px',900,'CubeAccel');
+			alive.animate('header','margin-left','-100px',900,'CubeAccel');
+			alive.animate('header','opacity',0,900,function(){
+				core.mode = 1;
+				core.example.style.display = 'flex';
+				fireExample();
+			})
+
+			dissolveTable();
+		}
+	};
+
+	function revealSequence(){
+		core.example.style.display = 'none';
+		core.header.style.marginLeft = '-100px';
+		document.getElementById('banner').style.marginLeft = '-100px';
+		alive.animate('banner','margin-left','0px',900,'CubeDecel');
+		alive.animate('header','margin-left','0px',900,'CubeDecel');
+		alive.animate('header','opacity',1,900);
+		revealTable();
+	};
+
+	function exampleSlideIn(){
+		core.example.style.marginTop = '20px';
+		alive.animate('example','opacity',1,1000,'CubeDecel');
+		alive.animate('example','margin-top','0px',core.goodTime/2,'CubeDecel');
+	}
+	function exampleSlideOut(callback){
+		core.example.style.marginTop = '0px';
+		alive.animate('example','opacity',0,400,'CubeAccel');
+		alive.animate('example','margin-top','-10px',400,callback,'CubeAccel');
+	}
+	function flash(isCorrect){
+		core.example.style.color = isCorrect ? 'rgb(115,169,68)' : 'rgb(225,9,50)';
+		alive.animate('example','color','rgb(0,0,0)',600,'CubeDecel');
+	}
+
+	function dissolveTable(){
+		core.container.style.opacity = '1';
+		alive.animate(core.container,'opacity',0,1200);
+	};
+	
+	function revealTable(){
+		core.container.style.opacity = '0';
+		alive.animate(core.container,'opacity',1,1200);
+	};
+
+	function drop() {
+		var drop = confirm("Cбросить все результаты и снова стать никем?");
+        if (drop) {
+            localStorage.clear();
+            location.reload();
+    	}
+	}
+
+	function deviceSetup(){
+		var isMobile = navigator.userAgent.match(/Android|BlackBerry|iPhone|iPad|iPod|Opera Mini|IEMobile/i) ? true : false;
+		if (isMobile){
+			core.example.style.height = '50%';
+			core.isMobile = true;
+		} else {
+			core.isMobile = false;
+		}
+	};
+
+	window.addEventListener('keydown',function(e){
+		if (core.mode == 1){
+			console.log(e.keyCode);
+			if (e.keyCode <= 57){
+				acceptKey(e.keyCode - 48);
+			} else {
+				acceptKey(e.keyCode - 96)
+			}
+		} else if (core.mode == 0 && e.keyCode == 13){
+			switchMode(1);
+		}
+	});
+	
+	document.body.addEventListener('touchstart',function(){
+		if (core.isMobile){
+			if (core.mode == 0) {
+				switchMode(1);
+			}
+			core.numpad.focus();
+		}
+	});
+	core.numpad.addEventListener('blur',function(){
+		if (core.isMobile && core.mode == 1){
+			core.numpad.focus();
+		}
+	});
+
+	core.canvas.addEventListener('mousemove',function(e){
+		core.hint.style.left = e.clientX+'px';
+		core.hint.style.top = (e.clientY-80)+'px';
+
+		var pointerX = Math.floor(e.clientX - core.canvas.getBoundingClientRect().left);
+		var pointerY = Math.floor(e.clientY - core.canvas.getBoundingClientRect().top);
+
+		if (pointerX < core.cellSize*100 && pointerY < core.cellSize*100){
+			var pointer = Math.floor(pointerX/core.cellSize) + Math.floor(pointerY/core.cellSize)*100;
+		} else {
+			var pointer = -1;
+		}
+
+		if (core.storage[pointer]) {
+			core.hint.innerHTML = core.storage[pointer].string + core.storage[pointer].c + '<br />Сложность: ' + (core.storage[pointer].grade+1) + '<br />' + (core.storage[pointer].timesShown > 0 ? 'Встречался '+core.storage[pointer].timesShown+ ([2,3,4].indexOf(core.storage[pointer].timesShown%10) != -1 ? ' раза' : ' раз') : 'Не встречался');
+			core.mark.style.width = core.mark.style.height = core.cellSize/2 + 'px';
+			core.mark.style.left = ((pointer%100)*core.cellSize + core.canvas.getBoundingClientRect().left + core.cellSize/4)+'px';
+			core.mark.style.top = (Math.floor(pointer/100)*core.cellSize + core.canvas.getBoundingClientRect().top + core.cellSize/4)+'px';
+		}
+	});
+	core.canvas.addEventListener('mouseover',function(e){
+		core.hint.style.display = 'flex';
+		core.mark.style.display = 'block';
+	});
+	core.canvas.addEventListener('mouseleave',function(e){
+		core.hint.style.display = 'none';
+		core.mark.style.display = 'none';
+	});
+	
+	function ignition(){
+		console.log('Resources loaded, lets begin');
+		buildTable();
+		deviceSetup();
+		switchMode(0);
+	};
+
+	(function init(){
+		core.loaded = true;
+		for (rr = 0; rr < core.resources.length; rr++){
+			if (!core.resources[rr].isReady){
+				core.loaded = core.loaded && false;
+			}
+		};
+		if (core.loaded){
+			ignition();
+		} else {
+		requestAnimationFrame(init);
+	};
+	})();
+
+
+</script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Interpolation</title>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; font-family: 'Open Sans', sans-serif; min-height: 700px; overflow: hidden; min-width: 100px}
+          	#thebox {position: absolute; top: 50%; margin-top: -300px; left: 50%; margin-left: -400px; border: 1px dotted #aaa;}
+        </style>
+</head>
+
+<body>
+<canvas  id='thebox' width = "800"; height = "600"; >Чето говно!</canvas>
+		<script>		
+			var canvas 		= document.getElementById("thebox"),
+			    ctx    		= canvas.getContext('2d');
+			
+			var seed		= 1,
+				centerXY	= {x: canvas.width/2|0, y:canvas.height/2|0},
+				delta		= {x: 300, y: 300};
+
+			var	chunkSize	= 100,
+				pixelSize	= 4,
+				noiseScale	= 20,
+				chunks 		= [],
+				loadChunksX	= Math.round(canvas.width/chunkSize/3),
+				loadChunksY	= Math.round(canvas.height/chunkSize/3);
+
+			var vMax = 0,
+				vMin = 1;
+
+			var loadStack = [];
+
+			var worker = new Worker('worker.js');
+			worker.onmessage = function(event){
+				var tmpChunk = new Chunk(event.data.position.x,event.data.position.y);
+				tmpChunk.pixels = event.data.pixels;
+				tmpChunk.image = event.data.image;
+				tmpChunk.ready = true;
+				for (ls = 0; ls < loadStack.length; ls++){
+							if (loadStack[ls].x == tmpChunk.position.x && loadStack[ls].y == tmpChunk.position.y) {loadStack.splice(ls,1);}
+						}
+				chunks.push(tmpChunk);
+				chunks[chunks.length-1].draw();
+			}
+
+			var Chunk = function(x,y){
+				this.ready = false;
+				this.position = {x: x,y: y};
+				this.image = ctx.createImageData(chunkSize*pixelSize,chunkSize*pixelSize);
+				this.chunkSize = chunkSize;
+				this.noiseScale = noiseScale;
+				this.seed = seed;
+				this.pixelSize = pixelSize;
+			}
+			
+			Chunk.prototype.draw = function(){
+				if (this.ready) {
+					ctx.putImageData(this.image,this.position.x*pixelSize + centerXY.x + delta.x*pixelSize,this.position.y*pixelSize + centerXY.y + delta.y*pixelSize);
+				}
+			}
+
+
+			var updateChunks = function(){
+
+				var bias = {x: Math.floor(-delta.x/chunkSize)*chunkSize, y: Math.floor(-delta.y/chunkSize)*chunkSize}
+
+				var borders = {
+					minX: bias.x - loadChunksX*chunkSize,
+					maxX: bias.x + loadChunksX*chunkSize,
+					minY: bias.y - loadChunksY*chunkSize,
+					maxY: bias.y + loadChunksY*chunkSize
+				}
+
+				var oldChunks = chunks;
+				chunks=[];
+
+				for (nx = borders.minX; nx < borders.maxX; nx += chunkSize){
+					for (ny = borders.minY; ny < borders.maxY; ny += chunkSize){
+						var findChunk = false,
+							passChunk = false;
+
+						for (ls = 0; ls < loadStack.length; ls++){
+							if (loadStack[ls].x == nx && loadStack[ls].y == ny) passChunk = true;
+						}
+
+						if (!passChunk) {
+						for (c = 0; c < oldChunks.length; c++){
+							if (oldChunks[c].position.x == nx && oldChunks[c].position.y == ny) {findChunk = oldChunks[c]; c = oldChunks.length;}
+						}}
+
+						if (findChunk) {chunks.push(findChunk)} else if (!passChunk) {	//MAGIC
+							var tmpChunk = new Chunk(nx,ny);
+							loadStack.push({x: nx,y: ny});
+							worker.postMessage(tmpChunk);
+						}
+
+					}
+				}
+
+				for (r=0;r<chunks.length;r++) chunks[r].draw();
+
+				
+			}
+
+			var poehali = function(){
+				//delta.x -= speed;
+				viewPort.redraw();
+				updateChunks();
+				requestAnimationFrame(poehali);
+			}
+
+			var ViewPort = function(){
+				this.position = {x:delta.x,y:delta.y};
+				this.speed = .05;
+				this.velocity = {x:0,y:0};
+				this.acceleration = {x:0,y:0};
+				this.force = {x:0,y:0};
+				
+			}
+
+			ViewPort.prototype.redraw = function(){
+				this.acceleration.x += this.force.x;
+				this.acceleration.y += this.force.y;
+				this.velocity.x += this.acceleration.x;
+				this.velocity.y += this.acceleration.y;
+				this.position.x += this.velocity.x;
+				this.position.y += this.velocity.y;
+
+				this.velocity.x *= Math.abs(this.velocity.x) > .01 ? .98 : 0;
+				this.velocity.y *= Math.abs(this.velocity.y) > .01 ? .98 : 0;
+
+				this.acceleration.x = 0;
+				this.acceleration.y = 0;
+
+				delta.x = this.position.x;
+				delta.y = this.position.y;
+			}
+
+			var viewPort = new ViewPort();
+				window.addEventListener("keydown",function(){
+					viewPort.force.x = event.keyCode == 37 ? viewPort.speed : event.keyCode == 39 ? -viewPort.speed : viewPort.force.x;
+					viewPort.force.y = event.keyCode == 38 ? viewPort.speed : event.keyCode == 40 ? -viewPort.speed : viewPort.force.y;
+				});
+				window.addEventListener("keyup",function(){
+					if (event.keyCode == 37 || event.keyCode == 39) viewPort.force.x = 0;
+					if (event.keyCode == 38 || event.keyCode == 40) viewPort.force.y = 0;
+				});
+
+			updateChunks();
+			poehali();
+
+		</script>
+</body>
+</html>

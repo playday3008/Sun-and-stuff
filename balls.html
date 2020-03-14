@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Noise</title>
+        <script src="balls/vector.js"></script>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow-y: hidden;}
+            canvas#vessel {
+            	width:100%; 
+            	height: 100%
+            }
+        </style>
+</head>
+<body>
+<canvas id="vessel"></canvas>
+<script type="text/javascript">
+var core;
+class Voronoi{
+	constructor(p,lt,rb){
+		//Init
+		this.points = p;
+		this.leftTop = lt || {x: 0, y: 0};
+		this.rightBottom = rb || {x: 100, y: 100};
+		this.line = 0;
+		this.PointEvent = function(p, shoreline){
+			this.point = p;
+			this.priority = p.y;
+			this.parabola = {
+				focus: {x: p.x, y: p.y},
+				event: this
+			}
+			this.shoreline = shoreline;
+			this.handle = function(){
+				console.log('Point event handled at ' + this.point.x + ', ' + this.point.y);
+				let placed = false;
+				if (this.shoreline.length > 0){
+					for (let i = 0; i < this.shoreline.length; i++){
+						if (this.parabola.focus.x < this.shoreline[i].focus.x){
+							this.shoreline.splice(i, 0, this.parabola);
+							placed = true;
+							i = this.shoreline.length;
+						}
+					}
+				}
+				if (!placed) this.shoreline.push(this.parabola);
+			}
+			this.getLeftBreak = function(){
+
+			}
+		}
+
+		//Stuff
+		this.events = [];
+		this.shoreline = [];
+		this.points.sort(function(a,b){return b.y - a.y});
+		for (let i = 0; i < this.points.length; i++){
+			this.events.push(new this.PointEvent(this.points[i], this.shoreline));
+		}
+
+		while (this.events.length > 0){
+			let event = this.events.pop();
+			event.handle();
+		}
+	}
+}
+class Quad {
+	constructor(points, canvas){
+		this.points = points;
+		this.canvas = canvas;
+		this.ctx = canvas.getContext('2d');
+		this.Node = function(quad, branch, center, margin, p, depth){
+			this.quad = quad;
+			this.branch = branch;
+			this.center = center;
+			this.margin = margin;
+			this.depth = depth;
+			this.points = quad.countPoints(p, new Vector(center.x - margin.x, center.y - margin.y), new Vector(center.x + margin.x, center.y + margin.y));
+			if (this.points.length > 1) {
+				let halfMargin = new Vector(margin.x / 2, margin.y / 2);
+				this.ne = new quad.Node (quad, this, new Vector(center.x - halfMargin.x, center.y - halfMargin.y), halfMargin, this.points, depth + 1);
+				this.nw = new quad.Node (quad, this, new Vector(center.x + halfMargin.x, center.y - halfMargin.y), halfMargin, this.points, depth + 1);
+				this.se = new quad.Node (quad, this, new Vector(center.x - halfMargin.x, center.y + halfMargin.y), halfMargin, this.points, depth + 1);
+				this.sw = new quad.Node (quad, this, new Vector(center.x + halfMargin.x, center.y + halfMargin.y), halfMargin, this.points, depth + 1);
+			}
+			this.display = function(showTree, showSites){
+				let ctx = this.quad.ctx;
+				if (this.points.length < 2){
+					if (showTree){
+						let alpha = this.depth * .08;
+						if (alpha > 1) alpha = 1;
+						ctx.fillStyle = 'rgba('+Math.floor(510 * alpha)+',0,255,'+alpha+')';
+						ctx.beginPath();
+						ctx.moveTo(this.center.x - this.margin.x, this.center.y - this.margin.y);
+						ctx.lineTo(this.center.x + this.margin.x, this.center.y - this.margin.y);
+						ctx.lineTo(this.center.x + this.margin.x, this.center.y + this.margin.y);
+						ctx.lineTo(this.center.x - this.margin.x, this.center.y + this.margin.y);
+						ctx.closePath();
+						ctx.fill();
+					}
+					if (this.points.length === 1 && showSites){
+						this.points[0].display();
+					}
+				} else if (this.ne){
+					this.ne.display(showTree, showSites);
+					this.nw.display(showTree, showSites);
+					this.se.display(showTree, showSites);
+					this.sw.display(showTree, showSites);
+				}
+			}
+			// this.displayCollision = function(){
+			// 	let p = this.points[0];
+			// 	let ctx = this.quad.ctx;
+			// 	ctx.strokeStyle = 'rgb(255,0,0)';
+			// 	ctx.beginPath();
+			// 	ctx.arc(p.x, p.y, 40, 0, Math.PI * 2);
+			// 	ctx.closePath();
+			// 	ctx.stroke();	
+			// }
+			// this.handleCollision = function(collider){
+			// 	if (!this.isColliding){
+			// 		let p = this.points[0];
+			// 		let c = collider;
+
+			// 		if (!p.a) p.a = new Vector(0, 0);
+			// 		if (!c.a) c.a = new Vector(0, 0);
+
+			// 		let centerline = p.p.distanceTo(c.p);
+			// 		let force = centerline.mag();
+			// 		centerline.normalize();
+			// 		centerline.mult(1 / force);
+			// 		c.a.add(centerline.clone());
+			// 		centerline.mult(-1);
+			// 		p.a.add(centerline.clone());
+
+			// 		this.isColliding = true;
+			// 		collider.isColliding = true;
+			// 	}
+			// }
+			this.searchIn = function(p, lt, rb){
+				if (((lt.x < this.center.x + this.margin.x && lt.y < this.center.y + this.margin.y) || (rb.x >= this.center.x - this.margin.x && rb.y >= this.center.y - this.margin.y)) && this.points.length > 0){
+					if (this.ne) {
+						let foundNe = this.ne.searchIn(p, lt, rb);
+						let foundNw = this.nw.searchIn(p, lt, rb);
+						let foundSe = this.se.searchIn(p, lt, rb);
+						let foundSw = this.sw.searchIn(p, lt, rb);
+						return foundNe || foundNw || foundSe || foundSw;
+					} else if (this.points.length === 1 && p !== this.points[0] && this.quad.getDistance(p.p, this.points[0].p) < (p.r + this.points[0].r)) {
+						return {p1:this.points[0], p2: p};
+					}
+				}
+				return false;
+			}
+		}
+		this.update();
+	}
+	removeDuplicates(){
+		for (let i = 0; i < this.points.length; i++){
+			for (let j = i + 1; j < this.points.length; j++){
+				if (this.points[i].x === this.points[j].x && this.points[i].y === this.points[j].y){
+					this.points.splice(j,1);
+					j--;
+				}
+			}
+		}
+	}
+	addPoint(x,y){
+		if (x.length) {
+			this.points = this.points.concat(x);
+			this.removeDuplicates();
+		} else if (y !== undefined) {
+			this.points.push(new Vector(x, y));
+			this.removeDuplicates();
+		}
+	}
+	countPoints(points, lt, rb){
+		let count = [];
+		for (let i = 0; i < points.length; i++){
+			if (points[i].p.x >= lt.x && points[i].p.y >= lt.y && points[i].p.x < rb.x && points[i].p.y < rb.y){
+				count.push(points[i]);
+			}
+		}
+		return count;
+	}
+	update(){
+		this.tree = new this.Node(this, false, new Vector(this.canvas.width / 2, this.canvas.height / 2), new Vector(this.canvas.width / 2, this.canvas.height / 2), this.points, 0);
+	}
+	display(showTree, showSites){
+		if (showTree || showSites){
+			let ctx = this.ctx;
+			this.tree.display(showTree, showSites);
+		}
+	}
+	detectCollisions(){
+		for (let i = 0; i < this.points.length; i++){
+			let p = this.points[i];
+			let pt = this.tree.searchIn(p, new Vector(p.x - p.r, p.y - p.r), new Vector(p.x + p.r, p.y + p.r));
+			if (pt) {
+				pt.p1.handleCollision(pt.p2);
+				// pt.p1.handleMerge(pt.p2);
+			}
+		}
+	}
+	getDistance(p1, p2){
+		return Math.sqrt((p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y));
+	}
+}
+class PSphere {
+	constructor(core, x, y, r, vx, vy, m, av){
+		this.core = core;
+		this.p = new Vector(x, y);
+		this.r = r;
+		this.v = new Vector(vx || 0, vy || 0);
+		this.a = new Vector(0, 0);
+		this.mass = m || 1;
+		this.angle = 0;
+		this.av = av || 0;
+		this.deathmark = false;
+
+		//Trails
+		this.lastP = this.p.clone();
+
+		this.isColliding = false;
+		this.collisionCounter = 0;
+		this.sound = new Click(this.core.actx, this.mass);
+	}
+	momentum(){
+		return this.v.mag() * this.mass;
+	}
+	handleCollision(collider){
+		if (!this.isColliding){
+			let normal = this.p.distanceTo(collider.p);
+			let dist = normal.mag();
+			let dist2 = this.p.sum(this.v).distanceTo(collider.p.sum(collider.v));
+			dist2 = dist2.mag();
+			if (dist > dist2){
+				let fullMass = this.mass + collider.mass;
+				let meetV = collider.v.distanceTo(this.v);
+				meetV = meetV.projectTo(normal);
+
+				//Equalizing angular velocity
+				let newAv = this.av * this.mass / fullMass - collider.av * collider.mass / fullMass;
+				let deltaAv1 = newAv - this.av;
+				let deltaAv2 = newAv + collider.av;
+				this.av = this.av * (1 - this.core.friction) + newAv * this.core.friction;
+				collider.av = collider.av * (1 - this.core.friction) - newAv * this.core.friction;
+
+				// Elasticity
+				meetV.mult(this.core.elasticity);
+				let v1 = meetV.clone();
+				let v2 = meetV.clone();
+				v1.mult(2 * this.mass / (this.mass + collider.mass));
+				v2.mult(-2 * collider.mass / (this.mass + collider.mass));
+
+				collider.v.add(v1);
+				this.v.add(v2);
+
+				//Rotation to motion
+				let touch = normal.clone();
+				touch.mult(.5);
+				touch.rotate(Math.PI / 2);
+				touch.normalize();
+				touch.mult(this.r * deltaAv1 * this.mass);
+				let rv1 = touch.clone();
+				let rv2 = touch.clone();
+				rv1.mult(this.core.friction / this.mass);
+				rv2.mult(-this.core.friction / collider.mass);
+
+				this.v.add(rv1);
+				collider.v.add(rv2);
+
+				this.collisionCounter ++;
+				collider.collisionCounter ++;
+				this.sound.play();
+				collider.sound.play();
+				this.isColliding = true;
+				collider.isColliding = true;
+			}
+		}
+	}
+	handleMerge(collider){
+		let big, small;
+		if (this.mass > collider.mass){
+			big = this;
+			small = collider;
+		} else {
+			big = collider;
+			small = this;
+		}
+
+		let smallV = small.v.clone();
+		smallV.mult(small.mass / big.mass);
+		big.v.add(smallV);
+		big.mass += small.mass;
+
+		let smallRot = small.av * small.mass / big.mass;
+		big.av += smallRot;
+
+		small.deathmark = true;
+	}
+	applyMutualAttraction(sites){
+		for (let i = 0; i < sites.length; i++){
+			if (sites[i] instanceof PSphere && sites[i] != this){
+				let delta = this.p.distanceTo(sites[i].p);
+				let deltaMag2 = delta.mag2();
+				delta.normalize();
+				let force = .1 * this.mass * sites[i].mass / deltaMag2;
+				delta.mult(force);
+				this.a.add(delta);
+			}
+		}
+	}
+	drawTrail(){
+		let vctx = this.core.vctx;
+		vctx.save();
+		vctx.strokeStyle = 'hsl('+Math.floor(this.r * 8)+',80%,30%)';
+		vctx.beginPath();
+		vctx.moveTo(this.lastP.x, this.lastP.y);
+		vctx.lineTo(this.p.x, this.p.y);
+		vctx.stroke();
+		vctx.restore();
+	}
+
+	update(){
+		this.isColliding = false;
+
+		this.lastP = this.p.clone();
+
+		// this.a.mult(this.core.time.dt * .5);
+		// this.a.add(new Vector(Math.cos(this.core.time.tt / 1000) * .05, Math.sin(this.core.time.tt / 1000) * .05));
+		this.applyMutualAttraction(this.core.sites);
+		this.a.mult(1 / this.mass);
+		
+		this.a.add(this.core.gravity);
+		this.v.add(this.a);
+		this.a.mult(0);
+		this.p.add(this.v);
+
+		this.angle += this.av;
+
+		if (this.p.x > this.core.canvas.width - this.r) {
+			this.p.x = this.core.canvas.width - this.r;
+			this.v.x *= -this.core.borderT;
+			// this.a.add(new Vector(-this.v.x * this.mass * 2, 0));
+		} else if (this.p.x < this.r) {
+			this.p.x = 0 + this.r;
+			this.v.x *= -this.core.borderT;
+			// this.a.add(new Vector(-this.v.x * this.mass * 2, 0));
+		}
+		if (this.p.y > this.core.canvas.height - this.r) {
+			this.p.y = this.core.canvas.height - this.r;
+			this.v.y *= -this.core.borderT;
+			// this.a.add(new Vector(0, -this.v.y * this.mass * 2));
+		} else if (this.p.y < this.r) {
+			this.p.y = 0 + this.r;
+			this.v.y *= -this.core.borderT;
+			// this.a.add(new Vector(0, -this.v.y * this.mass * 2));
+		}
+	}
+	display() {
+
+		this.drawTrail();
+
+		let ctx = this.core.ctx;
+		// ctx.fillStyle = 'hsl('+this.collisionCounter * 5+',80%,60%)';
+
+		ctx.fillStyle = 'hsl('+Math.floor(this.r * 8)+',80%,60%)';
+		ctx.save();
+		ctx.translate(this.p.x, this.p.y);
+		ctx.rotate(this.angle);
+		ctx.beginPath();
+		ctx.arc(0, 0, this.r || 10, 0, Math.PI);
+		ctx.closePath();
+		ctx.fill();
+
+		ctx.fillStyle = 'hsl('+Math.floor(this.r * 8)+',60%,40%)';
+		ctx.beginPath();
+		ctx.arc(0, 0, this.r || 10, Math.PI, Math.PI * 2);
+		ctx.closePath();
+		ctx.fill();
+		ctx.restore();
+
+		ctx.strokeStyle = 'hsl('+Math.floor(this.r * 8)+',80%,60%)';
+		ctx.lineWidth = 3;
+		ctx.beginPath();
+		let from = this.av > 0 ? -Math.PI / 2 : -Math.PI / 2 + this.av * (Math.PI * 3 / 2);
+		let to = this.av > 0 ? -Math.PI / 2 + this.av * (Math.PI * 3 / 2) : -Math.PI / 2;
+		ctx.arc(this.p.x, this.p.y, this.r + 8, from, to);
+		ctx.stroke();
+
+		ctx.font = '20px Tahoma'
+		ctx.fillText(Math.round(this.mass * this.v.mag()), this.p.x + this.r + 15, this.p.y + 10)
+	}
+}
+class Click {
+	constructor(context, pitch){
+		this.context = context;
+		this.pitch = pitch;
+		this.notes = [
+		130.81,
+		146.83,
+		164.81,
+		174.61,
+		196,
+		220.00,
+		246.94,
+		261.63,
+		293.66,
+		329.63,
+		349.23,
+		392.00,
+		440.00];
+		this.note = this.notes[Math.floor(Math.random()*this.notes.length)];
+	}
+	init(){
+		this.tri = this.context.createOscillator();
+		this.sin = this.context.createOscillator();
+		this.triGain = this.context.createGain();
+		this.sinGain = this.context.createGain();
+		this.tri.connect(this.triGain);
+		this.sin.connect(this.sinGain);
+		this.triGain.connect(this.context.destination);
+		this.sinGain.connect(this.context.destination);
+		this.tri.type = 'sine';
+		this.sin.type = 'sine';
+	}
+	play(){
+		this.init();
+		// let random = Math.random();
+		this.tri.frequency.setValueAtTime(this.note * .6, this.context.currentTime);
+		this.sin.frequency.setValueAtTime(this.note * 4, this.context.currentTime);
+		this.triGain.gain.setValueAtTime(.25, this.context.currentTime);
+		this.sinGain.gain.setValueAtTime(.5, this.context.currentTime);
+		this.tri.start(this.context.currentTime);
+		this.sin.start(this.context.currentTime);
+		this.stop(this.context.currentTime);
+	}
+	stop(time){
+		this.triGain.gain.exponentialRampToValueAtTime(.001, this.context.currentTime + .8);
+		this.sinGain.gain.exponentialRampToValueAtTime(.001, this.context.currentTime + .8);
+		this.tri.stop(this.context.currentTime + .8);
+		this.sin.stop(this.context.currentTime + .8);
+	}
+};
+class Core {
+	constructor(canvas) {
+		this.canvas = canvas;
+		this.ratio = window.devicePixelRatio;
+		this.camera = {
+			x: 0,
+			y: 0,
+			zoom: 1
+		}
+		this.timeScale = 1;
+		this.time = {
+			tt: 0,
+			dt: 0,
+			lt: 0
+		};
+		this.canvas.width = this.canvas.clientWidth * this.ratio;
+		this.canvas.height = this.canvas.clientHeight * this.ratio;
+		this.ctx = this.canvas.getContext('2d');
+		this.ctx.fillStyle = 'rgb(0,0,0)';
+		this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+		this.mouse = {x: this.canvas.width / 2, y: this.canvas.height / 2};
+		this.actx = new (window.AudioContext || window.webkitAudioContext)();
+
+		this.vcanvas = document.createElement('canvas');
+		this.vcanvas.width = this.canvas.width;
+		this.vcanvas.height = this.canvas.height;
+		this.vctx = this.vcanvas.getContext('2d');
+
+		// Data stuff
+		this.sites = [];
+		this.siteRadius = 10;
+		this.gravity = false; //new Vector(0,.1);
+		this.borderT = 1;
+		this.elasticity = 1;
+		this.friction = .5;
+
+		//Liseners
+		this.canvas.addEventListener('click', function(e){
+			// this.sites.push({x: e.clientX * this.ratio, y: e.clientY * this.ratio, v: new Vector()});
+			// this.updateTree(this.sites);
+		}.bind(this))
+		this.canvas.addEventListener('mousemove', function(e){
+			this.mouse.x = e.clientX * this.ratio;
+			this.mouse.y = e.clientY * this.ratio;
+		}.bind(this))
+
+		//Do once
+		this.plotSites(16);
+		
+		// this.sites.push(new PSphere(this, this.canvas.width / 2, 300, this.siteRadius * 4, 0, 1, 1, .2));
+		// this.sites.push(new PSphere(this, this.canvas.width / 2, 500, this.siteRadius * 4, 0, 0, 1, -.2));
+
+		// this.sites.push(new PSphere(this, this.canvas.width / 2, this.canvas.height / 2, this.siteRadius * 3, 0, 0, 100000, -.01));
+		// this.sites.push(new PSphere(this, this.canvas.width / 2, this.canvas.height / 2 - 400, this.siteRadius * 1.4, -5, 0, 350, -.2));
+		// this.sites.push(new PSphere(this, this.canvas.width / 2 + 100, this.canvas.height / 2, this.siteRadius * .5, 0, 13.7, 1, 0));
+		// this.sites.push(new PSphere(this, this.canvas.width / 2, this.canvas.height / 2 + 800, this.siteRadius * 1, 3.5, 0, 500, .2));
+		// this.sites.push(new PSphere(this, this.canvas.width / 2, this.canvas.height / 2 + 830, this.siteRadius * .2, 4.8, 0, .01, 0));
+
+		// this.sites.push(new PSphere(this, this.canvas.width / 2, 100, this.siteRadius, 0, 8));
+		// this.sites.push(new PSphere(this, this.canvas.width / 2, 200, this.siteRadius, 0, 0));
+		// this.sites.push(new PSphere(this, this.canvas.width / 2, 300, this.siteRadius, 0, 0));
+		// this.sites.push(new PSphere(this, this.canvas.width / 2, 400, this.siteRadius * 4, 0, 0, 100));
+		// this.sites.push(new PSphere(this, this.canvas.width / 2, 500, this.siteRadius, 0, 0));
+		// this.sites.push(new PSphere(this, this.canvas.width / 2, this.canvas.height - 300, this.siteRadius, 0, 0));
+		// this.sites.push(new PSphere(this, this.canvas.width / 2, this.canvas.height - 200, this.siteRadius, 0, 0));
+		// this.sites.push(new PSphere(this, this.canvas.width / 2, this.canvas.height - 100, this.siteRadius * 1.6, 0, -2, 4,));
+
+		// this.sites.push(new PSphere(this, 100, this.canvas.height / 2, this.siteRadius, 16, 0));
+		// this.sites.push(new PSphere(this, 100, this.canvas.height / 2 - 100, this.siteRadius, 14, 0));
+		// this.sites.push(new PSphere(this, 100, this.canvas.height / 2 + 100, this.siteRadius, 12, 0));
+		// this.sites.push(new PSphere(this, this.canvas.width - 100, this.canvas.height / 2, this.siteRadius * 2, 0, 0, 4));
+		// this.sites.push(new PSphere(this, this.canvas.width - 100, this.canvas.height / 2 - 100, this.siteRadius * 2, 0, 0, 4));
+		// this.sites.push(new PSphere(this, this.canvas.width - 100, this.canvas.height / 2 + 100, this.siteRadius * 2, 0, 0, 4));
+
+		this.quad = new Quad(this.sites, this.canvas);
+		// this.voronoi = new Voronoi(this.sites, {x: 0, y: 0}, {x: this.canvas.width, y: this.canvas.height});
+		// console.log(this.voronoi);
+	}
+	frame(){
+		//Do every frame
+		this.updateSites(this.sites);
+		this.quad.update();
+		this.quad.detectCollisions();
+
+		this.ctx.fillStyle = '#050510';
+		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+		this.ctx.drawImage(this.vcanvas,0,0);
+		this.quad.display(false, true);
+
+		this.grimReaper(this.sites);
+	}
+	grimReaper(sites){
+		for (let i = 0; i < sites.length; i++){
+			if (sites[i].deathmark) {
+				sites.splice(i,1);
+				i--;
+			}
+		}
+	}
+	getSquaredDistance(a,b){
+		return (b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y);
+	}
+	isWithinCircle(point, triangle){
+		let c = this.getCircumcircle(triangle[0], triangle[1], triangle[2]);
+		let distance2 = (c.x - point.x) * (c.x - point.x) + (c.y - point.y) * (c.y - point.y);
+		return distance2 < c.r2 ? true : false;
+	}
+	getCircumcircle(a,b,c){
+		let A = b.x - a.x,
+			B = b.y - a.y,
+			C = c.x - a.x,
+			D = c.y - a.y,
+			E = A * (a.x + b.x) + B * (a.y + b.y),
+			F = C * (a.x + c.x) + D * (a.y + c.y),
+			G = 2 * (A * (c.y - b.y) - B * (c.x - b.x)),
+			minx, miny, dx, dy, x, y, r2;
+
+		if (Math.abs(G) < 1e-6){
+			minx = Math.min(a.x, b.x, c.x);
+		    miny = Math.min(a.y, b.y, c.y);
+		    dx = (Math.max(a.x, b.x, c.x) - minx) * 0.5;
+		    dy = (Math.max(a.y, b.y, c.y) - miny) * 0.5;
+
+		    x = minx + dx;
+		    y = miny + dy;
+		    r2 = dx * dx + dy * dy;
+		} else {
+			x = (D * E - B * F) / G;
+			y = (A * F - C * E) / G;
+			dx = x - a.x;
+			dy = y - a.y;
+			r2 = dx * dx + dy * dy;			
+		}
+		return ({x: x, y: y, r2: r2});
+	}
+	plotSites(q){
+		for (let i = 0; i < q; i++){
+			let rx = Math.random() * this.canvas.width;
+			let ry = Math.random() * this.canvas.height;
+			let r = 4 + Math.floor(Math.random() * 30);
+			this.sites.push(new PSphere(this, rx, ry, r, Math.random() * 4 - 2, Math.random() * 4 - 2, Math.PI * r * r, Math.random() - .5));
+		}
+	}
+	// displaySites(){
+	// 	let ctx = this.ctx;
+	// 	ctx.save();
+	// 	ctx.fillStyle = '#FFF';
+	// 	for (let i = 0; i < this.sites.length; i++){
+	// 		ctx.beginPath();
+	// 		ctx.arc(this.sites[i].x, this.sites[i].y, this.sites[i].r, 0, Math.PI * 2);
+	// 		ctx.closePath();
+	// 		ctx.fill();
+	// 	}
+	// 	ctx.restore();
+	// }
+	updateSites(s){
+		for (let i = 0; i < s.length; i++){
+			s[i].update();
+		}
+	}
+	run() {
+		this.frameID = requestAnimationFrame(this.run.bind(this));
+		let now = window.performance.now();
+		this.time.dt = (now - this.time.lt) * this.timeScale;
+		this.time.tt += this.time.dt;
+		this.time.lt = now;
+		this.frame();
+	}
+}
+window.onload = function(){
+	core = new Core(document.getElementById('vessel'));
+	core.run();
+};
+
+</script>
+</body>
+</html>

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Metronome</title>
+        <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 700px; overflow: hidden; min-width: 100px; font-family: 'Lato', sans-serif}
+          	#thebox {position: absolute; top: 0; left: 0; width: 100%; height: 100%;}
+          	#scribes{position: absolute; top:5%; left: 3%; font-size: 12px}
+          	#hint {
+          		position: absolute;
+          		font-size: 10px;
+          		color: rgba(0,0,0,.2);
+          		bottom: 5px;
+          		left: 5px;
+          	}
+          	#hint:hover {
+          		color: rgba(0,0,0,1);
+          	}
+          	.key {
+          		display: inline-block;
+          		background: rgba(180,170,150,.2);
+          		border-radius: 2px;
+          		padding: 0 4px;
+          	}
+          	svg text {
+          		font-size: 80px;
+          		dominant-baseline: central;
+          	}
+          	#bpm{
+          		position: absolute;
+          		font-size: 80px;
+          	}
+          	#play {
+          		display: flex;
+          		position: absolute;
+          		font-size: 60px;
+          		border: 6px solid black;
+          		width: 200px;
+          		height: 200px;
+          		border-radius: 150px;
+          		align-items: center;
+          		justify-content: center;
+          		
+          	}
+          	@media all and (orientation:portrait){
+          		#play {
+          			left: calc(50% - 100px);
+          			bottom: 15%;
+          		}
+          		#bpm{
+          			font-size: 120px;
+          			top: 20%;
+          			width: 100%;
+          			text-align: center;
+          		}
+          	}
+          	@media all and (orientation:landscape){
+          		#play {
+          			font-size: 30px;
+          			border-width: 3px;
+          			width: 100px;
+          			height: 100px;
+          			top: calc(50% - 50px);
+          			right: 20%
+          		}
+          		#bpm {
+          			top:50%;
+          			margin-top: -48px;
+          			left: 20%;
+          		}
+          	}
+          	/*.off {
+          		border-color: #0c0;
+          		color: #0c0;
+          	}
+          	.on {
+          		border-color: #c20;
+          		color: #c20;*/
+          	}
+        </style>
+</head>
+
+<body>
+<svg id="thebox">
+	<g id="waves"></g>
+</svg>
+<div id="bpm">123</div>
+<div id="play" class="off">Go</div>
+<div id="hint">Spacebar to run and stop, <span class="key">0</span> — <span class="key">9</span> to set and <span class="key">–</span>/<span class="key">=</span> to adjust bpm. Accenting every <span id="signature">4th</span> beat. <span class="key">[</span> and <span class="key">]</span> to change. Tap <span class="key">return</span> to guess bpm. ©&nbsp;2017&nbsp;Sunandstuff</div>
+</div>
+		<script>
+			var actx = new (window.AudioContext || window.webkitAudioContext)();
+
+			var core = {
+				lt : 0,
+				dt : 0,
+				tt : 0
+			};
+
+			class Beat {
+				constructor(context){
+					this.context = context;
+				}
+				init(){
+					this.oscillator = this.context.createOscillator();
+					this.gain = this.context.createGain();
+					this.oscillator.connect(this.gain);
+					this.gain.connect(this.context.destination);
+					this.oscillator.type = 'triangle';
+				}
+				play(high, time, silent){
+					this.init();
+					this.oscillator.frequency.value = high ? 1900 : 1120;
+					this.gain.gain.setValueAtTime(silent ? .001 : 1, time)
+					this.oscillator.start(time);
+					this.stop(time);
+				}
+				stop(time){
+					this.gain.gain.exponentialRampToValueAtTime(.001, time + .3);
+					this.oscillator.stop(time + .3);
+				}
+			};
+
+			class Click {
+				constructor(context){
+					this.context = context;
+				}
+				init(){
+					this.tri = this.context.createOscillator();
+					this.sin = this.context.createOscillator();
+					this.triGain = this.context.createGain();
+					this.sinGain = this.context.createGain();
+					this.tri.connect(this.triGain);
+					this.sin.connect(this.sinGain);
+					this.triGain.connect(this.context.destination);
+					this.sinGain.connect(this.context.destination);
+					this.tri.type = 'triangle';
+					this.sin.type = 'sine';
+				}
+				play(){
+					this.init();
+					this.tri.frequency.setValueAtTime(6000, this.context.currentTime);
+					this.sin.frequency.setValueAtTime(2500, this.context.currentTime);
+					this.triGain.gain.setValueAtTime(.4, this.context.currentTime);
+					this.sinGain.gain.setValueAtTime(.4, this.context.currentTime);
+					this.tri.start(this.context.currentTime);
+					this.sin.start(this.context.currentTime);
+					this.stop(this.context.currentTime);
+				}
+				stop(time){
+					this.triGain.gain.exponentialRampToValueAtTime(.001, this.context.currentTime + .01);
+					this.sinGain.gain.exponentialRampToValueAtTime(.001, this.context.currentTime + .01);
+					this.tri.frequency.exponentialRampToValueAtTime(.001, this.context.currentTime + .01);
+					this.sin.frequency.exponentialRampToValueAtTime(.001, this.context.currentTime + .01);
+					this.tri.stop(this.context.currentTime + .1);
+					this.sin.stop(this.context.currentTime + .1);
+				}
+			};
+
+			var Pulsar = function(){
+
+				this.running = false;
+				this.bpm = 120;
+
+				this.svg = document.getElementById('thebox');
+				this.gwave = document.getElementById('waves');
+				this.ball = document.createElementNS('http://www.w3.org/2000/svg','circle');
+				this.ball.setAttribute('r', '2%');
+				this.ball.setAttribute('cx', '50%');
+				this.ball.setAttribute('cy', '50%');
+				this.svg.appendChild(this.ball);
+				this.button = document.getElementById('play');
+				this.button.style.borderColor = this.button.style.color = 'hsl('+(719 * (this.bpm - 40) / 359)+',90%,45%)';
+
+				this.detectTouch = function(){
+					try {
+						document.createEvent("TouchEvent");
+						return true;
+					} catch(e){
+						return false;
+					}
+				};
+				this.isTouch = this.detectTouch();
+				if (!this.isTouch){
+					this.button.style.display = 'none';
+				}
+				this.locked = true;
+
+				this.text = document.getElementById('bpm');
+				this.text.innerHTML = this.bpm;
+
+				this.time = function(){return 60000/this.bpm};
+				this.tt = 0;
+				this.wait = 0;
+				this.waves = [];
+				this.size = 4;
+				this.count = 1;
+				this.signature = document.getElementById('signature');
+				this.hint = document.getElementById('hint');
+				if (this.isTouch){
+					this.hint.style.display = 'none';
+				}
+				this.counter = new Bpm(this);
+				this.sound = new Beat(actx);
+				this.click = new Click(actx);
+				this.manual = [0,0,0,0,0];
+				this.lastHit = 0;
+				this.unlock = function(){
+					this.sound.play(true, actx.currentTime, true);
+					this.locked = false;
+				}
+				this.toggle = function(){
+					if (this.running) {this.stop()} else {this.run()};
+				}
+				this.tapReset = function(){
+					this.lastHit = 0;
+				}
+				this.tapToBPM = function(){
+					let difference = window.performance.now() - this.lastHit;
+						this.lastHit = window.performance.now();
+						if (difference > 1500 || this.manual[0] === 0){
+							for (let i = 0; i < this.manual.length; i++){
+								this.manual[i] = 60000 / this.bpm;
+							}
+						} else if (difference > 150){
+							this.manual.shift();
+							this.manual.push(difference);
+						}
+						let sorted = this.manual.slice();
+						sorted.sort(function(a,b){return a - b;});
+						let median = sorted[Math.ceil(sorted.length / 2 - 1)];
+
+						this.bpm = Math.round(60000 / median);
+						this.counter.reset();
+				}
+				this.keyDown = function(e){
+					if (e.keyCode == 32){
+						this.toggle();
+					} else if (e.keyCode >= 48 && e.keyCode <= 57) {
+						if (this.counter.mode == 0 && e.keyCode >= 49){
+							if (e.keyCode <= 51){
+								this.counter.digits[0] = e.keyCode - 48;
+								this.counter.digits[1] = this.counter.digits[2] = '-';
+								this.counter.mode = 1;
+							} else {
+								this.counter.digits[0] = 0;
+								this.counter.digits[1] = e.keyCode - 48;
+								this.counter.digits[2] = '-';
+								this.counter.mode = 2;
+							}
+						} else if (this.counter.mode == 1){
+							this.counter.digits[1] = e.keyCode - 48;
+							this.counter.mode = 2;
+						} else if (this.counter.mode == 2){
+							this.counter.digits[2] = e.keyCode - 48;
+							this.bpm = this.counter.digits[0]*100 + this.counter.digits[1]*10 + this.counter.digits[2];
+							this.counter.mode = 0;
+						}
+						this.counter.update();
+					} else if (e.keyCode == 189){
+						if (this.bpm > 40) this.bpm -=1;
+						this.counter.reset();
+					} else if (e.keyCode == 187){
+						if (this.bpm < 399) this.bpm +=1;
+						this.counter.reset();
+					} else if (e.keyCode == 219){
+						if (this.size > 2) {
+							this.size --;
+							this.signature.innerHTML = this.size + (this.size == 1 ? 'st' : this.size == 2 ? 'nd' : this.size == 3 ? 'rd' : 'th');
+						};
+					} else if (e.keyCode == 221){
+						if (this.size < 9){ 
+							this.size ++;
+							this.signature.innerHTML = this.size + (this.size == 1 ? 'st' : this.size == 2 ? 'nd' : this.size == 3 ? 'rd' : 'th');
+						}
+					} else if (e.keyCode == 13){
+						this.tapToBPM();
+					}
+				};
+				this.touch = function(e){
+					e.preventDefault();
+					if (e.type === 'touchstart'){
+						if (e.touches.length == 1 && e.target != this.button) {
+							this.tapToBPM();
+							this.iy = e.touches[0].pageY;
+							this.ibpm = this.bpm;
+						}
+					} else if (e.type === 'touchend'){
+						if (e.target === this.button){
+							if (this.locked){
+								this.unlock();
+							}
+							this.toggle();
+						}
+					} else if (e.type === 'touchmove'){
+						this.tapReset();
+						if (e.touches.length == 1 && e.target != this.button){
+							this.bpm = this.ibpm + Math.round((this.iy - e.touches[0].pageY) * .1);
+							if (this.bpm > 399) {this.bpm = 399} else if (this.bpm < 40) {this.bpm = 40};
+							this.counter.reset();
+						}
+					}
+				};
+				window.addEventListener('keydown', this.keyDown.bind(this));
+				if (this.isTouch){
+					window.addEventListener('touchstart', this.touch.bind(this));
+					window.addEventListener('touchend', this.touch.bind(this));
+					window.addEventListener('touchmove', this.touch.bind(this));
+				}
+			}
+			Pulsar.prototype.update = function(){
+				if (this.running){
+					this.wait += core.dt;
+					this.tt += core.dt;
+					if (this.wait >= this.time()){
+						this.wait = this.wait % this.time();
+						this.pulse();
+					}
+				};
+			};
+			Pulsar.prototype.pulse = function(){
+				if (this.count == 1){
+					this.sound.play(true, actx.currentTime);
+				} else {
+					this.sound.play(false, actx.currentTime);
+					if (this.count >= this.size) this.count = 0;
+				}
+				this.count ++;
+
+				this.waves.push(document.createElementNS('http://www.w3.org/2000/svg','circle'));
+				this.waves.black = true;
+				this.waves[this.waves.length-1].setAttribute('r', '2%');
+				this.waves[this.waves.length-1].setAttribute('cx', '50%');
+				this.waves[this.waves.length-1].setAttribute('cy', '50%');
+				this.waves[this.waves.length-1].style.fill = 'none';
+				this.waves[this.waves.length-1].style.stroke = 'hsl('+(0 + 719 * (this.bpm - 40) / 359)+',90%,45%)';
+				this.waves[this.waves.length-1].style.strokeWidth = '2%';
+				this.waves[this.waves.length-1].cycle = window.performance.now();
+				this.gwave.appendChild(this.waves[this.waves.length-1]);
+			}
+			Pulsar.prototype.run = function(){
+				this.wait = this.time();
+				this.running = true;
+				this.button.innerHTML = 'Stop';
+				this.button.classList.remove('off');
+				this.button.classList.add('on');
+			}
+			Pulsar.prototype.stop = function(){
+				this.running = false;
+				this.wait = 0;
+				this.tt = 0;
+				this.count = 1;
+				this.ball.setAttribute('transform', 'translate(0,0)');
+				this.button.innerHTML = 'Go';
+				this.button.classList.remove('on');
+				this.button.classList.add('off');
+			}
+
+			var Bpm = function(pulsar){
+				this.bpm = pulsar.bpm;
+				this.digits = [];
+				this.parent = pulsar;
+				this.reset();
+			};
+			Bpm.prototype.reset = function(){
+				this.digits[0] = Math.floor(this.parent.bpm / 100);
+				this.digits[1] = Math.floor((this.parent.bpm - this.digits[0]*100) / 10);
+				this.digits[2] = this.parent.bpm - this.digits[0]*100 - this.digits[1]*10;
+				this.mode = 0;
+				this.update();
+				this.parent.button.style.borderColor = this.parent.button.style.color = 'hsl('+(719 * (this.parent.bpm - 40) / 359)+',90%,45%)';
+			}
+			Bpm.prototype.update = function(){
+				let line = this.digits[0] > 0 ? this.digits[0] + '' : '';
+				line = line + this.digits[1] + this.digits[2] ;
+				this.parent.text.innerHTML = line;
+			}
+
+			var pulsar = new Pulsar();
+			var aRender = setInterval(function(){
+				core.now = window.performance.now();
+				core.dt = core.now - core.lt;
+				core.tt += core.dt;
+				core.lt = core.now;
+				pulsar.update();
+			},4);
+
+			(function render(){	
+				pulsar.ball.setAttribute('transform', 'translate(0,' + (Math.sin(-pulsar.wait/pulsar.time()*Math.PI)*pulsar.svg.clientHeight/6) + ')');
+				for (let i = 0; i < pulsar.waves.length; i++){
+					let elapsed = window.performance.now() - pulsar.waves[i].cycle;
+					if (elapsed < 1000){
+						pulsar.waves[i].setAttribute('r', elapsed / 100 + 2 + '%');
+						pulsar.waves[i].style.strokeWidth = (2 - 2 * elapsed / 1000) + '%';
+						//pulsar.waves[i].style.opacity = (1500 - elapsed)/1500;
+					} else {
+						pulsar.gwave.removeChild(pulsar.waves.shift()); 
+					}
+				}
+				requestAnimationFrame(render);
+			})(); 
+
+		</script>
+</body>
+</html>

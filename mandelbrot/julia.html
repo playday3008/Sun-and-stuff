@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Множества Жулиа</title>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow-y: hidden;}
+            .vessel {
+            	width: 100%;
+            	height: 100%;
+            }
+            .techno {
+            	position: absolute;
+            	top: 1rem;
+            	right: 1rem;
+            	color: #fff;
+            	font: .7rem Verdana;
+            	width: 12rem;
+            }
+            .switch {
+            	opacity: .6;
+            }
+            .switch:hover{
+            	cursor: pointer;
+            	opacity: 1;
+            }
+        </style>
+</head>
+<body>
+
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript" >
+   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+   m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+   ym(24216865, "init", {
+        id:24216865,
+        clickmap:true,
+        trackLinks:true,
+        accurateTrackBounce:true,
+        webvisor:true
+   });
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/24216865" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->
+
+	<canvas class="vessel"></canvas>
+	<div class="techno">Множества Джулиа для чисел около множества Мандельброта. Работают стрелки и + / –<br /><br />зум: x<span class="zoom">12</span><br />точка: <span class="point"></span><br /><br /><span class="switch" onclick="javascript:colormap=0;">Bloom</span> <span class="switch" onclick="javascript:colormap=1;">Purple</span> <span class="switch" onclick="javascript:colormap=2;">Royal</span> <span class="switch" onclick="javascript:colormap=3;">Fire</span></div>
+
+<script class="vsh" type="x-shader/x-fragment">
+	
+	attribute vec2 a_position;
+
+	void main(void){
+		gl_Position = vec4(a_position, 0.0, 1.0);
+	}
+
+</script>
+<script class="fsh" type="x-shader/x-fragment">
+
+	precision highp float;
+	uniform float u_time;
+	uniform vec2 u_size;
+	uniform vec2 u_mouse;
+
+	uniform float u_scale;
+	uniform vec2 u_delta;
+	uniform int u_colormap;
+
+	float m(in vec2 c, vec2 origin){
+
+		float n = 0.;
+		const int iterations = 64;
+		
+		//vec2 z = vec2(0., sin(u_time / 48.) * .37);
+		//vec2 z = vec2(0.,0.);
+		vec2 z = origin.xy;
+
+		for (int i = 0; i < iterations; i++){
+			z = vec2(z.x * z.x - z.y * z.y, 2. * z.x * z.y) + c;
+			if (dot(z,z)>8.) break;
+			n += 1.;
+		}
+		
+		float v = n - log2(log2(dot(z,z))) + 4.0;
+		return (n == float(iterations)) ? 1. : v / float(iterations);
+
+	}
+
+	float j(in vec2 c, vec2 origin){
+
+		float n = 0.;
+		const int iterations = 256;
+
+		vec2 z = c.xy;
+
+		for (int i = 0; i < iterations; i++){
+			z = vec2(z.x * z.x - z.y * z.y, 2. * z.x * z.y) + origin;
+			if (dot(z,z)>8.) break;
+			n += 1.;
+		}
+
+		float v = n - log2(log2(dot(z,z))) + 4.0;
+		return (n == float(iterations)) ? 1. : v / float(iterations);
+
+	}
+	vec3 getRoyal(in float in_f){
+
+		float f = in_f;
+
+		for (int i = 0; i < 16; i++){
+			if (f <= .5) {
+				f *= 2.;
+				break;
+			}
+			f = (f - .5) * 2.;
+		}
+
+		f = fract(f + u_time / 32.);
+
+		vec3 c1 = vec3(0.015625, 0.01171875, 0.15625);
+		vec3 c2 = vec3(0.09375, 0.15625, 0.33203125);
+		vec3 c3 = vec3(0.47265625, 0.23828125, 0.55859375);
+		vec3 c4 = vec3(0.99609375, 0.87109375, 0.4375);
+		vec3 c5 = vec3(0.62109375, 0.20703125, 0.3046875);
+
+		if (f < .2){
+			return mix(c1,c2,f * 5.);
+		} else if (f < .4){
+			return mix(c2,c3, (f - .2) * 5.);
+		} else if (f < .6){
+			return mix(c3,c4, (f - .4) * 5.);
+		} else if (f < .8){
+			return mix(c4,c5, (f - .6) * 5.);
+		} else if (f < 1.){
+			return mix(c5,c1, (f - .8) * 5.);
+		}
+
+		return c4;
+
+	}
+	vec3 getBloom(in float in_f){
+
+		float f = in_f;
+
+
+		for (int i = 0; i < 16; i++){
+			if (f <= .5) {
+				f *= 2.;
+				break;
+			}
+			f = (f - .5) * 2.;
+		}
+
+		vec3 c5 = vec3(0.99609375, 0.99609375, 0.92578125);
+		vec3 c4 = vec3(0.98828125, 0.87109375, 0.43359375);
+		vec3 c3 = vec3(0.99609375, 0.5390625, 0.13671875);
+		vec3 c2 = vec3(0.64453125, 0.0390625, 0.19140625);
+		vec3 c1 = vec3(0.3671875, 0.0546875, 0.24609375);
+
+		if (f < .2){
+			return mix(c1,c2,f * 5.);
+		} else if (f < .4){
+			return mix(c2,c3, (f - .2) * 5.);
+		} else if (f < .6){
+			return mix(c3,c4, (f - .4) * 5.);
+		} else if (f < .8){
+			return mix(c4,c5, (f - .6) * 5.);
+		} else if (f < 1.){
+			return mix(c5,c1, (f - .8) * 5.);
+		}
+
+		return c5;
+
+	}
+
+	vec3 getPurple(in float in_f){
+
+		float f = in_f;
+
+
+		for (int i = 0; i < 16; i++){
+			if (f <= .5) {
+				f *= 2.;
+				break;
+			}
+			f = (f - .5) * 2.;
+		}
+
+		vec3 c1 = vec3(0.2265625,0.05859375,0.4296875);
+		vec3 c2 = vec3(0.546875,0.15625,0.50390625);
+		vec3 c3 = vec3(0.86328125,0.28515625,0.40625);
+		vec3 c4 = vec3(0.98828125,0.6171875,0.421875);
+		vec3 c5 = vec3(0.98046875,0.98046875,0.7421875);
+		vec3 c6 = vec3(0.98828125,0.6171875,0.421875);
+		vec3 c7 = vec3(0.86328125,0.28515625,0.40625);
+		vec3 c8 = vec3(0.546875,0.15625,0.50390625);
+
+		if (f < .125){
+			return mix(c1,c2,f * 8.);
+		} else if (f < .25){
+			return mix(c2,c3, (f - .125) * 8.);
+		} else if (f < .375){
+			return mix(c3,c4, (f - .25) * 8.);
+		} else if (f < .5){
+			return mix(c4,c5, (f - .375) * 8.);
+		} else if (f < .625){
+			return mix(c5,c6, (f - .5) * 8.);
+		} else if (f < .75){
+			return mix(c6,c7, (f - .625) * 8.);
+		} else if (f < .875){
+			return mix(c7,c8, (f - .75) * 8.);
+		} else if (f < 1.){
+			return mix(c8,c1, (f - .875) * 8.);
+		}
+
+		return c5;
+
+	}
+	vec3 getFire(in float f){
+
+		vec3 c1 = vec3(0.171875, 0.171875, 0.1796875);
+		vec3 c2 = vec3(0.40234375, 0.1875, 0.16796875);
+		vec3 c3 = vec3(0.77734375, 0.29296875, 0.19921875);
+		vec3 c4 = vec3(0.97265625, 0.61328125, 0.3125);
+		vec3 c5 = vec3(0.96484375, 0.9609375, 0.63671875);
+
+		if (f < .25){
+			return mix(c1,c2,f * 4.);
+		} else if (f < .5){
+			return mix(c2,c3, (f - .25) * 4.);
+		} else if (f < .75){
+			return mix(c3,c4, (f - .5) * 4.);
+		} else if (f < 1.){
+			return mix(c4,c5, (f - .75) * 4.);
+		}
+
+		return mix(c4,c5,f);
+
+	}
+
+
+	void main(void){
+
+		vec2 offset = vec2(-1., -.5);
+
+		float scale = u_scale;
+		vec2 delta = u_delta;
+		
+		vec2 scaled = vec2(gl_FragCoord.x / u_size.y + offset.x, gl_FragCoord.y / u_size.y + offset.y) * scale + delta;
+		vec2 mouseOrigin = vec2(u_mouse.x / u_size.y * 2. - 2.3, u_mouse.y / u_size.y * 2. -1.);
+		vec2 fixedOrigin = vec2(gl_FragCoord.x / u_size.y * 2. - 2.3, gl_FragCoord.y / u_size.y * 2. -1.);
+
+		
+		float fm = m(fixedOrigin, vec2(0., 0.));
+		float fj = j(scaled, mouseOrigin);
+
+		vec3 color2 = vec3(1. - fm);
+		vec3 color = u_colormap == 0 ? getBloom(fj) : u_colormap == 1 ? getPurple(fj) : u_colormap == 2 ? getRoyal(fj) : getFire(fj);
+
+		gl_FragColor = vec4(mix(color,color2,.04), 1.);
+		
+
+		/*
+		vec3 col = getRoyal(m(scaled, mouseOrigin));
+		gl_FragColor = vec4(col, 1.0);
+		*/
+	}
+
+</script>
+
+<script type="text/javascript">
+
+	//Warehouse
+	// vec4(0.9765625, 0.34375, 0.34375, 1.0)
+	let zoom = document.querySelector('.zoom');
+	let point = document.querySelector('.point');
+	let colormap = 2;
+
+	//Moving
+	//let scale = .03;
+	//let delta = [-1.25, .05];
+	let scale=2;
+	let delta = [0,0];
+	let direction = [0,0,0,0];
+	let deltaSpeed = [0,0];
+	let deltaAcc = [0,0];
+	let scaleAcc = 0;
+	let scaleSpeed = 0;
+
+	let ratio = window.devicePixelRatio || 1;
+	let canvas = document.querySelector('.vessel');
+	canvas.width = canvas.clientWidth * ratio;
+	canvas.height = canvas.clientHeight * ratio;
+	let gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+	//Geometry
+	let vertices = [-1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0];
+	let vbuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, vbuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+	// gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+	//Vertex Shader
+	let vshader = gl.createShader(gl.VERTEX_SHADER);
+	gl.shaderSource(vshader, document.querySelector('.vsh').textContent);
+	gl.compileShader(vshader);
+
+	//Fragment Shader
+	let fshader = gl.createShader(gl.FRAGMENT_SHADER);
+	gl.shaderSource(fshader, document.querySelector('.fsh').textContent);
+	gl.compileShader(fshader);
+	if (!gl.getShaderParameter(fshader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(fshader));
+
+	//Program
+	let program = gl.createProgram();
+	gl.attachShader(program, vshader);
+	gl.attachShader(program, fshader);
+	gl.linkProgram(program);
+	gl.useProgram(program);
+
+	//Geometry to program
+	let xy = gl.getAttribLocation(program, 'a_position');
+	gl.vertexAttribPointer(xy, 2, gl.FLOAT, false, 0, 0);
+	gl.enableVertexAttribArray(xy);
+
+
+	//Size
+	let size = gl.getUniformLocation(program, 'u_size');
+	gl.uniform2fv(size, [canvas.width, canvas.height]);
+
+	//Time
+	let time = gl.getUniformLocation(program, 'u_time');
+
+	//Colors
+	//let u_colors = gl.getUniformLocation(program, 'u_colors');
+	//gl.uniform1fv(u_colors, [0.2265625,0.05859375,0.4296875,0.546875,0.15625,0.50390625,0.86328125,0.28515625,0.40625,0.98828125,0.6171875,0.421875,0.98046875,0.98046875,0.7421875,0.98828125,0.6171875,0.421875,0.86328125,0.28515625,0.40625,0.546875,0.15625,0.50390625]);
+	//let colors = [[0,.15,.3,.48,.62,.7,.85,1],[[0.2265625,0.05859375,0.4296875],[0.546875,0.15625,0.50390625],[0.86328125,0.28515625,0.40625],[0.98828125,0.6171875,0.421875],[0.98046875,0.98046875,0.7421875],[0.98828125,0.6171875,0.421875],[0.86328125,0.28515625,0.40625],[0.546875,0.15625,0.50390625]]];
+	// let u_map = gl.createTexture();
+	// gl.bindTexture(gl.TEXTURE_1D, u_map);
+	// let colors = new Uint8Array([0,0,0,58,15,110,140,40,129,221,73,104,253,158,108,251,251,190,255]);
+
+
+	//Mouse tracking
+	let u_mouse = gl.getUniformLocation(program, 'u_mouse');
+	let mouse = [0,0];
+
+	window.addEventListener('mousemove', (e)=>{
+		mouse = [e.clientX * ratio, canvas.height - e.clientY * ratio];
+	});
+	window.addEventListener('touchmove', (e)=>{
+		e.preventDefault();
+		mouse = [e.touches[0].clientX * ratio, canvas.height - e.touches[0].clientY * ratio];
+	});
+
+	//Pan and zoom
+	let u_scale = gl.getUniformLocation(program, 'u_scale');
+	let u_delta = gl.getUniformLocation(program, 'u_delta');
+
+	//Colormap
+	let u_colormap = gl.getUniformLocation(program, 'u_colormap');
+
+	window.addEventListener('keydown', (e)=>{
+		if (e.which === 38) deltaAcc[1] = 1; else if (e.which === 39) deltaAcc[0] = 1; else if (e.which === 40) deltaAcc[1] = -1; else if (e.which === 37) deltaAcc[0] = -1; else if (e.which === 187) scaleAcc = -1; else if (e.which === 189) scaleAcc = 2;
+	});
+	window.addEventListener('keyup', (e)=>{
+		if (e.which === 38) deltaAcc[1] = 0; else if (e.which === 39) deltaAcc[0] = 0; else if (e.which === 40) deltaAcc[1] = 0; else if (e.which === 37) deltaAcc[0] = 0; else if (e.which === 187) scaleAcc = 0; else if (e.which === 189) scaleAcc = 0;
+	});
+
+	//Render
+	function render(){
+		requestAnimationFrame(render);
+		// gl.clearColor(0.265625, 0.17578125, 0.94921875, 1);
+		// gl.clear(gl.COLOR_BUFFER_BIT);
+
+		//Relax
+		let max = .005 * scale;
+		let inc = max/5;
+		
+		deltaSpeed[0] += deltaAcc[0] * inc;
+		deltaSpeed[1] += deltaAcc[1] * inc;
+
+		delta[0] += deltaSpeed[0];
+		delta[1] += deltaSpeed[1];
+
+		deltaSpeed[0] *= .9;
+		deltaSpeed[1] *= .9;
+
+		scaleSpeed += scaleAcc * scale / 600;
+		scale += scaleSpeed;
+		scaleSpeed *= .9;
+		if (scale < .00008) scale = .00008; else if (scale > 10) scale = 10;
+
+		//Techno
+		zoom.innerHTML = Math.round(200 / scale) / 100;
+		point.innerHTML = Math.round(10000 * (mouse[0] / canvas.height * 2 - 2.3)) / 10000 + ' ' + Math.round(10000 * (mouse[1] / canvas.height * 2 - 1)) / 10000 + 'i';
+
+
+		gl.uniform1f(time, window.performance.now() / 1000);
+		gl.uniform2fv(u_mouse, mouse);
+		gl.uniform1f(u_scale, scale);
+		gl.uniform2fv(u_delta, delta);
+		gl.uniform1i(u_colormap, colormap);
+
+		gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+	}
+	render();
+	
+</script>
+</body>
+</html>

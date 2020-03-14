@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Spectrometer</title>
+		 <script src="spectrum/light2.js"></script>
+		<style type="text/css">
+
+			body, html {
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				padding: 0;
+				overflow: hidden;
+				background: #000;
+				min-height: 768px;
+				min-width: 1024px;
+			}
+
+			canvas#risovanie {
+				width: 100%;
+				height: 100%;
+			}
+
+			div.lt {
+				position: absolute;
+				left:0;
+				top:0;
+			}
+
+			.ss {
+				position: absolute;
+				display: flex;
+				top: 50%;
+				left: 50%;
+				width: 200px;
+				height: 200px;
+				margin: -100px 0 0 -100px;
+				background: #fff;
+				align-items: center;
+				justify-content: center;
+				font: 600 30px 'TT Norms';
+				border-radius: 50%;
+			}
+
+		</style>
+	</head>
+
+	<body>
+		<div class="lt">
+			<canvas id="risovanie"></canvas>
+			<div class="ss">Start</div>
+		</div>
+		<script type="text/javascript">
+
+			class Spectrometer {
+
+				constructor(canvas){
+
+					this.dt = 0;
+					this.lt = 0;
+					this.tt = 0;
+					this.tts = 0;
+					this.ttss = 0;
+
+					this.playTime = 0;
+
+					this.renderSequence = false;
+					this.speed = 4;
+					this.pause = true;
+
+					this.log = true;
+					this.timeMarks = true;
+					this.frequencyMarks = true;
+					this.instantFrequencies = true;
+					this.drawGauges = true;
+					this.drawQuantum = true;
+
+					this.ratio = window.devicePixelRatio;
+					this.canvas = canvas;
+					this.canvas.width = window.innerWidth * this.ratio;
+					this.canvas.height = window.innerHeight * this.ratio;
+					this.ctx = this.canvas.getContext('2d');
+
+					this.vcanvas = document.createElement('canvas');
+					this.vcanvas.width = this.canvas.width;
+					this.vcanvas.height = this.canvas.height;
+					this.vctx = this.vcanvas.getContext('2d');
+
+					this.uiCanvas = document.createElement('canvas');
+					this.uiCanvas.width = this.canvas.width * .1;
+					this.uiCanvas.height = this.canvas.height;
+					this.uctx = this.uiCanvas.getContext('2d');
+
+					this.ssButton = document.querySelector('.ss');
+
+					this.colorScheme = light('inferno', [0,1]);
+					if (this.instantFrequencies) this.uctx.globalCompositeOperation = 'source-over';
+
+					this.actx = new (window.AudioContext || window.webkitAudioContext)();
+					this.analyser = this.actx.createAnalyser();
+					this.analyser.fftSize = 2048;
+					this.analyser.minDecibels = -100;
+					this.analyser.maxDecibels = -20;
+					this.analyser.smoothingTimeConstant = 0;
+					this.smoothBuffer = new Uint8Array(this.analyser.frequencyBinCount);
+					this.smoothConstant = .8;
+					this.frequencyRange = this.actx.sampleRate / 2;
+					this.freqCellHeight = this.vcanvas.height / this.analyser.frequencyBinCount;
+
+					navigator.mediaDevices.getUserMedia({"audio": {"mandatory": {"googEchoCancellation": "false","googAutoGainControl": "true","googNoiseSuppression": "false","googHighpassFilter": "false"}}})
+						.then(function(stream) {
+						  this.sound = this.actx.createMediaStreamSource(stream);
+						  this.sound.connect(this.analyser);
+						}.bind(this))
+						.catch(function(err) {
+						  console.log('oh shit');
+					});
+
+					window.addEventListener('click',(e)=>{
+						this.togglePause();
+					});
+
+				}
+
+				togglePause() {
+					if (this.pause){
+						this.actx.resume();
+						this.run();
+						this.ssButton.style.display = 'none';
+					} else {
+						this.stop();
+						this.ssButton.style.display = 'flex';
+					}
+				}
+
+				frame(){
+
+					let freqs = new Uint8Array(this.analyser.frequencyBinCount);
+					let dbs = new Float32Array(this.analyser.frequencyBinCount);
+					let tdd = new Uint8Array(this.analyser.fftSize);
+					this.analyser.getByteFrequencyData(freqs);
+					this.analyser.getFloatFrequencyData(dbs);
+					this.analyser.getByteTimeDomainData(tdd);
+					
+					this.drawLinearCoordsSpecter(freqs, dbs, tdd);
+
+				}
+
+				drawLinearCoordsSpecter(freqs, dbs, tdd){
+					let vx = this.vcanvas.width - this.speed;
+
+					let level = {high: 0, mid: 0, low: 0};
+					
+					for (let i = 0; i < freqs.length; i++){
+
+
+						// Using smoothBuffer instead of freqs
+						if (i < 10){
+							level.low = Math.max(this.smoothBuffer[i], level.low);
+						} else if (i < 200){
+							level.mid = Math.max(this.smoothBuffer[i], level.mid);
+						} else {
+							level.high = Math.max(this.smoothBuffer[i], level.high);
+						}
+
+						let y = this.vcanvas.height * i / freqs.length;
+						if (this.log) y = this.toLogScale(y, this.vcanvas.height);
+
+						let nValue = freqs[freqs.length - 1 - i] / 256;
+						this.vctx.fillStyle = this.colorScheme(nValue);
+						this.vctx.fillRect(vx, y, this.speed, 20);
+
+						// signalSum = dbs[i] > signalSum.value ? {value: dbs[i], f: this.getFrequency(i)} : signalSum;
+						this.smoothBuffer[i] = this.smoothBuffer[i] * this.smoothConstant + freqs[i] * (1 - this.smoothConstant);
+
+					}
+
+					level.high /= 256;
+					level.mid /= 256;
+					level.low /= 256;
+
+					// signalSum.value += 140; // Consider silence is -140 db
+
+					this.uctx.lineTo(0,this.uiCanvas.height);
+
+					this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+					this.ctx.drawImage(this.vcanvas, 0, 0);
+					this.vctx.drawImage(this.canvas, -this.speed, 0);
+
+					this.drawInstantFrequencies(freqs, 128);
+
+					this.ctx.drawImage(this.uiCanvas, 0, 0);
+
+					if (this.drawGauges) this.drawMeter(level);
+					if (this.drawQuantum) this.drawWave(tdd);
+					// this.drawDb(signalSum);
+					if (this.timeMarks) this.drawTimeMark();
+					if (this.frequencyMarks) this.drawFrequencyMarks(8);
+				}
+
+				aWeight(f){
+					return 148693636 * f * f * f * f / ((f * f + 424.36) * (f * f + 148693636) * Math.sqrt((f * f * 11599.29) * (f * f * 544496.41)));
+				}
+
+				render(){
+					// requestAnimationFrame(this.render.bind(this));
+					this.renderSequence = this.pause ? false : requestAnimationFrame(this.render.bind(this));
+					let ct = window.performance.now();
+					this.dt = ct - this.lt;
+					this.lt = ct;
+					this.tt += this.dt;
+
+					if (this.actx.state === 'running' && !this.pause) {
+						this.playTime += this.dt;
+					}
+
+					this.frame();
+				}
+
+				stop(){
+					this.pause = true;
+					// this.actx.suspend();
+				}
+
+				run(){
+					if (this.pause){
+						this.pause = false;
+						this.actx.resume();
+						this.lt = window.performance.now();
+						this.render();
+					}
+				}
+
+				playSound(){
+					this.sound.play(this.actx.currentTime);
+				}
+
+				drawTimeMark(){
+
+					let tts = 0, ttss = 0;
+
+					if (this.sound){
+						
+						tts = Math.floor(this.playTime / 1000);
+						ttss = Math.floor(this.playTime / 100);
+						
+					}
+
+					if (ttss > this.ttss && ttss % 10 !== 0){
+						this.ttss = ttss;
+						this.vctx.fillStyle = '#FFF';
+						this.vctx.fillRect(this.vcanvas.width - this.speed - 6, 0, this.ratio, 4 * this.ratio);
+					}
+
+					if (tts > this.tts){
+						this.tts = tts;
+
+						let seconds = this.tts % 60;
+						let text = Math.floor(this.tts / 60) + ':' + (seconds < 10 ? ('0'+seconds) : seconds);
+						this.vctx.fillStyle = '#FFF';
+						this.vctx.font = 10 * this.ratio + 'px Lato';
+						this.vctx.textAlign = 'right';
+						this.vctx.fillText(text, this.vcanvas.width - this.speed, 20 * this.ratio);
+						this.vctx.fillRect(this.vcanvas.width - this.speed - 6, 0, this.ratio, 8 * this.ratio);
+					}
+
+				}
+
+				drawFrequencyMarks(ticks){
+
+					let stops = [100, 440, 1000, 2000, 5000, 10000, 15000, 20000];
+					let leftX = this.canvas.width - 8 * this.ratio;
+					
+					this.ctx.fillStyle = '#fff'
+					this.ctx.font = 10 * this.ratio + 'px Lato';
+					this.ctx.textAlign = 'right';
+					this.ctx.textBaseline = 'middle';
+
+					for (let i = 0; i < stops.length; i++){
+
+						let fraction = stops[i] / this.frequencyRange;
+						let y = (1 - fraction) * this.canvas.height;
+
+						if (this.log) {
+							y = this.toLogScale(y, this.canvas.height);
+						}
+						if (y > 20 * this.ratio){
+							this.ctx.fillRect(leftX, y, 8 * this.ratio, this.ratio);
+							this.ctx.fillText(stops[i] < 1000 ? stops[i] + ' Hz' : Math.floor (stops[i] * .01) * .1 + ' kHz', leftX - 4 * this.ratio, y);
+						}
+
+					}
+
+				}
+
+
+
+				drawMeter(levels){
+
+					let zeroAngle = -Math.PI * 1.2;
+					let maxAngle = Math.PI * .2;
+					let bigArc = 30 * this.ratio;
+					let smallArc = 25 * this.ratio;
+
+					this.ctx.save();
+					this.ctx.translate(250 * this.ratio, 250 * this.ratio);
+					this.drawGauge(bigArc, smallArc, zeroAngle, maxAngle, levels.high, 'high');
+					this.ctx.restore();
+
+					this.ctx.save();
+					this.ctx.translate(250 * this.ratio + bigArc * 3, 250 * this.ratio);
+					this.drawGauge(bigArc, smallArc, zeroAngle, maxAngle, levels.mid, 'mid');
+					this.ctx.restore();
+
+					this.ctx.save();
+					this.ctx.translate(250 * this.ratio + bigArc * 6, 250 * this.ratio);
+					this.drawGauge(bigArc, smallArc, zeroAngle, maxAngle, levels.low, 'low');
+					this.ctx.restore();
+
+				}
+
+				drawGauge(bigArc, smallArc, zeroAngle, maxAngle, fraction, label){
+
+					let fAngle = fraction * Math.PI * 1.4 - Math.PI * 1.2;
+
+					this.ctx.fillStyle = 'rgba(255,255,255,.1)';
+					this.ctx.beginPath();
+					this.ctx.arc(0, 0, bigArc, zeroAngle, maxAngle);
+					this.ctx.arc(0, 0, smallArc, maxAngle, zeroAngle, true);
+					this.ctx.closePath();
+					this.ctx.fill();
+
+					this.ctx.fillStyle = '#fff';
+					this.ctx.beginPath();
+					this.ctx.arc(0, 0, bigArc, zeroAngle, fAngle);
+					this.ctx.arc(0, 0, smallArc, fAngle, zeroAngle, true);
+					this.ctx.closePath();
+					this.ctx.fill();
+
+					this.ctx.fillStyle = 'rgba(255,255,255,'+(fraction * .8 + .2)+')';
+					this.ctx.font = 14 * this.ratio + 'px Lato';
+					this.ctx.textAlign = 'center';
+					this.ctx.textBaseline = 'middle';
+					this.ctx.fillText(label, 0, -3 * this.ratio);
+				}
+
+				drawWave(tdd){
+
+					let step = 8;
+					let dx = 240 * this.ratio;
+					let dy = 140 * this.ratio;
+
+					this.ctx.save();
+					this.ctx.translate(220 * this.ratio, 100 * this.ratio);
+
+					this.ctx.strokeStyle = '#fff';
+					this.ctx.lineWidth = 2 * this.ratio;
+					this.ctx.beginPath();
+					this.ctx.moveTo(0, dy - tdd[0] / 256 * dy);
+
+					for (let i = step; i < tdd.length; i += step){
+
+						let normalizedTdd = tdd[i] / 256;
+						this.ctx.lineTo(i * dx / tdd.length, dy - normalizedTdd * dy);
+
+					}
+
+					this.ctx.stroke();
+
+					this.ctx.restore();
+
+				}
+
+				drawInstantFrequencies(freqs, n){
+
+					this.uctx.clearRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
+					this.uctx.strokeStyle = 'rgba(255, 255, 255, .6)';
+					this.uctx.lineWidth = 2 * this.ratio;
+					this.uctx.beginPath();
+
+					for (let i = 0; i < n;  i++){
+
+
+						let fraction = i / n;
+						let y = Math.floor(fraction * this.uiCanvas.height);
+
+						let index = Math.floor((1 - fraction) * freqs.length);
+						let frequency = this.getFrequency(index);
+
+						let y2 = 0;
+
+						if (this.log) {
+							y2 = Math.round(this.uiCanvas.height * Math.log(y) / Math.log(this.uiCanvas.height));
+							index = Math.floor(((this.uiCanvas.height - y2) / this.uiCanvas.height) * freqs.length);
+						};
+
+						// Get value from smooth buffer identical to analyser data, but smoothed
+						let value = this.smoothBuffer[index] / 256;
+
+						this.uctx.moveTo(0, y);
+						this.uctx.lineTo(this.uiCanvas.width * value, y);
+
+					}
+
+					this.uctx.stroke();
+
+				}
+
+				getFrequency(index, isNorm){
+
+					if (isNorm){
+						return index * this.actx.sampleRate / 2 + 1;
+					} else {
+						return index * this.actx.sampleRate / 2 / this.analyser.frequencyBinCount + 1;
+					}
+					
+				}
+
+				drawDb(value){
+
+					this.ctx.fillStyle = 'rgba(255,255,255,1)';
+					this.ctx.font = 40 * this.ratio + 'px Lato';
+					this.ctx.textAlign = 'left';
+					// this.ctx.textBaseline = 'middle';
+					this.ctx.fillText('Peak ' + Math.round(value.value) + ' dB at ' + Math.floor(value.f) + ' Hz', 220 * this.ratio, 100 * this.ratio);
+
+				}
+
+				toLogScale(i, length, in_base){
+
+					return Math.exp(i / length * Math.log(length));
+
+				}
+			}
+
+			var specter = new Spectrometer(document.getElementById('risovanie'));
+			// specter.render();
+
+
+		</script>
+	</body>
+</html>

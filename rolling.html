@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>RS</title>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow: hidden; background:#112;}
+            canvas#vessel {
+            	position: absolute;
+            	top:0;
+            	left:0;
+            	width:100%; 
+            	height: 100%;
+            }
+            #video {
+            	/*position: absolute;
+            	top: 20px;
+            	left:20px;*/
+            	/*width: 300px;
+            	height: 200px;*/
+            	display: none;
+            }
+        </style>
+</head>
+<body>
+<canvas id="vessel" ></canvas>
+<video id="video" loop>
+    <!-- <source src="mov.mp4" type="video/mp4"> -->
+</video>
+<script type="text/javascript">
+
+class Core {
+
+	constructor(canvas, v) {
+
+		this.canvas = canvas;
+		this.ratio = .5;//window.devicePixelRatio;
+		this.canvas.width = this.canvas.clientWidth * this.ratio;
+		this.canvas.height = this.canvas.clientHeight * this.ratio;
+		this.ctx = this.canvas.getContext('2d');
+		this.halfWidth = this.canvas.width * .5;
+		this.halfHeight = this.canvas.height * .5;
+
+		this.vCanvas = document.createElement('canvas');
+		this.vCanvas.width = this.canvas.width;
+		this.vCanvas.height = this.canvas.height;
+		this.vctx = this.vCanvas.getContext('2d');
+
+		this.v = v;
+
+		// this.canvas.addEventListener('click',()=>{
+		// 	if (this.v.paused){
+		// 		this.v.play();
+		// 	} else {
+		// 		this.v.pause();
+		// 	}
+		// });
+
+		this.f = 0;
+		this.maxF = this.canvas.height;
+		this.rate = 4;
+		this.lines = Math.ceil(this.canvas.height / this.rate);
+
+		this.buffer = new Array(this.lines);
+		for (let i = 0; i < this.buffer.length; i++){
+			this.buffer[i] = [];
+			for (let j = 0; j < i; j++){
+				this.buffer[i].push(this.vctx.createImageData(1,1));
+			}
+		}
+
+		//CAM
+		// var v = this.v;
+		if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+		    navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream) {
+		        //video.src = window.URL.createObjectURL(stream);
+		        v.srcObject = stream;
+		        v.play();
+		    });
+		}
+
+		this.run();
+
+	}
+
+	run() {
+
+		this.frameID = requestAnimationFrame(this.run.bind(this));
+		this.frame();
+
+	}
+
+	frame(){
+
+		this.vctx.drawImage(this.v, (this.vCanvas.width - this.v.videoWidth) / 2, (this.vCanvas.height - this.v.videoHeight) / 2, this.v.videoWidth, this.v.videoHeight);
+
+		for (let i = 0; i < this.lines; i++){
+			this.buffer[i].push(this.vctx.getImageData(0,this.rate * i, this.vCanvas.width, this.rate));
+		}
+
+		for (let i = 0; i < this.buffer.length; i++){
+			this.ctx.putImageData(this.buffer[i].shift(), 0, i * this.rate);
+		}
+
+		// this.vctx.drawImage(this.v, 0, this.f * (this.v.videoHeight / this.canvas.height), this.v.videoWidth, this.rate, 0, this.f, this.canvas.width, this.rate);
+		// this.vctx.drawImage(this.v, 0, 0, this.vCanvas.width, this.vCanvas.height);
+
+		// let update = this.vctx.getImageData(0,this.f,this.vCanvas.width, 1);
+
+		// for (let i = 0; i < this.buffer.length; i += this.canvas.width * 4){
+		// 	for (j = 0; j < this.canvas.width * 4; j++){
+
+		// 		this.buffer[i+j] = this.buffer[i + this.canvas.width * 4 + j];
+		// 		this.buffer[i+j+1] = this.buffer[i + this.canvas.width * 4 + j + 1];
+		// 		this.buffer[i+j+2] = this.buffer[i + this.canvas.width * 4 + j + 2];
+		// 		this.buffer[i+j+3] = this.buffer[i + this.canvas.width * 4 + j + 3];
+
+		// 	}
+		// }
+		// for (let i = 0; i < update.length; i+= 4){
+		// 	let yi = this.buffer.length - this.canvas.width * 4;
+		// 	this.buffer[yi + i] = update[i];
+		// 	this.buffer[yi + i + 1] = update[i];
+		// 	this.buffer[yi + i + 2] = update[i + 1];
+		// 	this.buffer[yi + i + 3] = update[i + 2];
+		// }
+		// // this.buffer.splice(0, this.canvas.width * 4);
+		// // this.buffer.concat(update);
+
+		// this.ctx.putImageData(update,0,this.f);
+		// this.ctx.drawImage(this.vCanvas, 0, this.canvas.height - this.f);
+
+		this.f += this.rate;
+		if (this.f > this.maxF) this.f = 0;
+
+	}
+}
+let core;
+document.addEventListener('DOMContentLoaded',()=>{
+	var v = document.querySelector('#video');
+	core = new Core(document.getElementById('vessel'), v);
+});
+
+
+</script>
+</body>
+</html>

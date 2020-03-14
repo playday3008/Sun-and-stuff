@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Bubbles</title>
+        <script src="bubbles/vector.js"></script>
+         <script src="bubbles/light2.js"></script>
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow-y: hidden;}
+            #vessel {
+            	width:100%; 
+            	height: 100%;
+            	background: #000;
+            }
+
+            @keyframes deflate{
+            	10% {r: 450}
+            	100% {r: 0}
+            }
+
+            .bubble {
+            	fill: #fff;
+            	transition: transform 1s ease;
+            }
+
+            .bubble:hover {
+            	cursor: pointer;
+            }
+
+            .dying {
+            	animation: deflate .3s ease-in;
+            	fill: #ff2473 !important;
+            }
+
+        </style>
+</head>
+<body>
+<svg id="vessel"></svg>
+<script type="text/javascript">
+var core;
+
+class Core {
+	constructor(svg) {
+
+		this.svg = svg;
+		
+		this.timeScale = 1;
+		this.time = {
+			tt: 0,
+			dt: 0,
+			lt: 0,
+			fps: 0
+		};
+
+		//DATA
+		this.dotsCount = 30;
+		this.dots = [];
+		this.maxRadius = 400;
+		this.popTimer = 1000;
+		this.colors = light('inferno',[0,.3]);
+
+		this.throwDots(this.dotsCount);
+		this.render();
+	}
+
+	showFps(){
+
+		this.ctx.fillStyle = '#fff';
+		this.ctx.font = '40px Lato';
+		this.ctx.fillText(this.time.fps + ' fps', 100, 100);
+
+	}
+
+	frame(){
+
+		// this.showFps();
+
+		this.relaxDots(10000);
+		this.cleanDots();
+
+	}
+	
+	render() {
+		this.frameID = requestAnimationFrame(this.render.bind(this));
+		let now = window.performance.now();
+		this.time.dt = (now - this.time.lt) * this.timeScale;
+		this.time.fps = Math.floor(1000 / this.time.dt * .2 + this.time.fps * .8);
+		this.time.tt += this.time.dt;
+		this.time.lt = now;
+		this.frame();
+	}
+
+	throwDots(n){
+
+		let totalWeight = 1;
+
+		for (let i = 0; i < n; i++){
+
+			let fraction = Math.random() * totalWeight * .2;
+			totalWeight -= fraction;
+			this.dots.push(new Dot(this, Math.floor(Math.random() * window.innerWidth), Math.floor(Math.random() * window.innerHeight), fraction));
+
+		}
+
+		this.redistributeWeight(totalWeight);
+
+	}
+
+	cleanDots(){
+
+		for (let i = 0; i < this.dots.length; i++){
+
+			if (this.dots[i].sentenced){
+				let deadBody = this.dots[i].weight;
+				this.dots.splice(i, 1)
+				this.redistributeWeightUneven(deadBody);
+				i--
+			}
+
+		}
+
+	}
+
+	redistributeWeightUneven(w){
+
+		let totalWeight = w;
+
+		for (let i = 0; i < this.dots.length; i++){
+
+			let supply = Math.random() * totalWeight * .2;
+			totalWeight -= supply;
+			this.dots[i].weight += supply;
+			this.dots[i].circle.setAttribute('transform', 'scale('+this.dots[i].weight+')');
+			this.dots[i].circle.style.fill = this.colors(this.dots[i].weight);
+
+		}
+
+		this.dots.push(new Dot(this, Math.floor(Math.random() * window.innerWidth), Math.floor(Math.random() * window.innerHeight), totalWeight));
+		// this.redistributeWeight(totalWeight);
+	}
+
+	redistributeWeight(w){
+
+		let supply = w / this.dots.length;
+
+		for (let i = 0; i < this.dots.length; i++){
+
+			this.dots[i].weight += supply;
+			this.dots[i].circle.setAttribute('transform', 'scale('+this.dots[i].weight+')');
+
+		}
+
+	}
+
+	relaxDots(force){
+
+		for (let i = 0; i < this.dots.length; i++){
+
+			let one = this.dots[i];
+
+			for (let j = i + 1; j < this.dots.length; j++){
+
+				let another = this.dots[j];
+
+				let delta = one.position.distanceTo(another.position);
+				let distance = delta.mag();
+				delta.normalize();
+				delta.mult(force / distance / distance);
+				let delta2 = delta.clone();
+				delta.mult(-another.weight / one.weight);
+				delta2.mult(one.weight / another.weight)
+
+				one.position.add(delta);
+				another.position.add(delta2);
+
+			}
+
+			//Border clip
+			if (one.position.x <= 0) one.position.x = 10;
+			if (one.position.x >= window.innerWidth) one.position.x = window.innerWidth - 10;
+			if (one.position.y <= 0) one.position.y = 10;
+			if (one.position.y >= window.innerHeight) one.position.y = window.innerHeight - 10;
+
+			// Border repulsion
+			let k = 6;
+			one.position.x += k * force / one.position.x / one.position.x;
+			one.position.x -= k * force / (window.innerWidth - one.position.x) / (window.innerWidth - one.position.x);
+			one.position.y += k * force / one.position.y / one.position.y;
+			one.position.y -= k * force / (window.innerHeight - one.position.y) / (window.innerHeight - one.position.y);
+
+			//Center attraction
+			let deltaC = one.position.distanceTo(new Vector(window.innerWidth / 2, window.innerHeight / 2));
+			let distanceC = deltaC.mag();
+			deltaC.normalize();
+			deltaC.mult(one.weight * distanceC / 50000);
+			one.position.add(deltaC);
+
+			one.g.setAttribute('transform', 'translate('+one.position.x+', '+one.position.y+')');
+
+		}
+
+	}
+}
+
+class Dot {
+
+	constructor(parent, x, y, w){
+
+		this.core = parent;
+		this.position = new Vector(x, y);
+		this.weight = w;
+		// this.radius = w * this.core.maxRadius;
+
+		this.g = document.createElementNS('http://www.w3.org/2000/svg','g');
+		this.g.setAttribute('transform', 'translate('+this.position.x+', '+this.position.y+')');
+
+		this.circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+		this.circle.setAttribute('r', this.core.maxRadius);
+		this.circle.setAttribute('transform', 'scale('+this.weight+', '+this.weight+')');
+		this.circle.style.fill = this.core.colors(this.weight);
+		this.circle.classList.add('bubble');
+
+		this.g.appendChild(this.circle);
+		this.core.svg.appendChild(this.g);
+
+		this.circle.addEventListener('click', function(){
+			this.circle.classList.add('dying');
+			this.circle.removeEventListener('mouseover');
+		}.bind(this))
+
+		this.circle.addEventListener('animationend', function(){
+			this.die();
+		}.bind(this))
+
+	}
+
+	die(){
+		this.sentenced = true;
+		this.core.svg.removeChild(this.g);
+	}
+
+}
+
+
+
+window.onload = function(){
+	core = new Core(document.getElementById('vessel'));
+
+};
+
+</script>
+</body>
+</html>
