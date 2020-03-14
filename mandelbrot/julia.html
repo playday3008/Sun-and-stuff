@@ -28,28 +28,11 @@
 </head>
 <body>
 
-<!-- Yandex.Metrika counter -->
-<script type="text/javascript" >
-   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-   m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
-   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-
-   ym(24216865, "init", {
-        id:24216865,
-        clickmap:true,
-        trackLinks:true,
-        accurateTrackBounce:true,
-        webvisor:true
-   });
-</script>
-<noscript><div><img src="https://mc.yandex.ru/watch/24216865" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-<!-- /Yandex.Metrika counter -->
-
 	<canvas class="vessel"></canvas>
 	<div class="techno">Множества Джулиа для чисел около множества Мандельброта. Работают стрелки и + / –<br /><br />зум: x<span class="zoom">12</span><br />точка: <span class="point"></span><br /><br /><span class="switch" onclick="javascript:colormap=0;">Bloom</span> <span class="switch" onclick="javascript:colormap=1;">Purple</span> <span class="switch" onclick="javascript:colormap=2;">Royal</span> <span class="switch" onclick="javascript:colormap=3;">Fire</span></div>
 
 <script class="vsh" type="x-shader/x-fragment">
-	
+
 	attribute vec2 a_position;
 
 	void main(void){
@@ -72,7 +55,7 @@
 
 		float n = 0.;
 		const int iterations = 64;
-		
+
 		//vec2 z = vec2(0., sin(u_time / 48.) * .37);
 		//vec2 z = vec2(0.,0.);
 		vec2 z = origin.xy;
@@ -82,7 +65,7 @@
 			if (dot(z,z)>8.) break;
 			n += 1.;
 		}
-		
+
 		float v = n - log2(log2(dot(z,z))) + 4.0;
 		return (n == float(iterations)) ? 1. : v / float(iterations);
 
@@ -247,12 +230,12 @@
 
 		float scale = u_scale;
 		vec2 delta = u_delta;
-		
+
 		vec2 scaled = vec2(gl_FragCoord.x / u_size.y + offset.x, gl_FragCoord.y / u_size.y + offset.y) * scale + delta;
 		vec2 mouseOrigin = vec2(u_mouse.x / u_size.y * 2. - 2.3, u_mouse.y / u_size.y * 2. -1.);
 		vec2 fixedOrigin = vec2(gl_FragCoord.x / u_size.y * 2. - 2.3, gl_FragCoord.y / u_size.y * 2. -1.);
 
-		
+
 		float fm = m(fixedOrigin, vec2(0., 0.));
 		float fj = j(scaled, mouseOrigin);
 
@@ -260,7 +243,7 @@
 		vec3 color = u_colormap == 0 ? getBloom(fj) : u_colormap == 1 ? getPurple(fj) : u_colormap == 2 ? getRoyal(fj) : getFire(fj);
 
 		gl_FragColor = vec4(mix(color,color2,.04), 1.);
-		
+
 
 		/*
 		vec3 col = getRoyal(m(scaled, mouseOrigin));
@@ -377,7 +360,7 @@
 		//Relax
 		let max = .005 * scale;
 		let inc = max/5;
-		
+
 		deltaSpeed[0] += deltaAcc[0] * inc;
 		deltaSpeed[1] += deltaAcc[1] * inc;
 
@@ -406,7 +389,7 @@
 		gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
 	}
 	render();
-	
+
 </script>
 </body>
 </html>

@@ -7,7 +7,7 @@
         <style>
             body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow-y: hidden;}
             canvas#vessel {
-            	width:100%; 
+            	width:100%;
             	height: 100%
             }
             .switch {
@@ -18,35 +18,6 @@
         </style>
 </head>
 <body>
-<!-- Yandex.Metrika counter -->
-<script type="text/javascript" >
-    (function (d, w, c) {
-        (w[c] = w[c] || []).push(function() {
-            try {
-                w.yaCounter24216865 = new Ya.Metrika2({
-                    id:24216865,
-                    clickmap:true,
-                    trackLinks:true,
-                    accurateTrackBounce:true,
-                    webvisor:true
-                });
-            } catch(e) { }
-        });
-
-        var n = d.getElementsByTagName("script")[0],
-            s = d.createElement("script"),
-            f = function () { n.parentNode.insertBefore(s, n); };
-        s.type = "text/javascript";
-        s.async = true;
-        s.src = "https://mc.yandex.ru/metrika/tag.js";
-
-        if (w.opera == "[object Opera]") {
-            d.addEventListener("DOMContentLoaded", f, false);
-        } else { f(); }
-    })(document, window, "yandex_metrika_callbacks2");
-</script>
-<noscript><div><img src="https://mc.yandex.ru/watch/24216865" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-<!-- /Yandex.Metrika counter -->
 <canvas id="vessel"></canvas>
 <script type="text/javascript">
 
@@ -228,10 +199,10 @@ class Core {
 			let ft = f * Math.PI;
 			let tf = (1 - Math.cos(ft)) * .5;
 			//return  a*(1-f) + b*f;
-			
+
 			this.vctx.save();
 			this.vctx.scale(tf,tf);
-			this.vctx.translate(this.vcanvas.width / 2, this.vcanvas.height * (-1 * (1 - tf) + .5 * tf)); 
+			this.vctx.translate(this.vcanvas.width / 2, this.vcanvas.height * (-1 * (1 - tf) + .5 * tf));
 			// this.vctx.translate(this.vcanvas.width / 2, this.vcanvas.height * (1.5 * (1 - tf) + .5 * tf));
 			this.vctx.rotate(this.angle / 360 * Math.PI * 2);
 			this.vctx.drawImage(this.image2, -this.vcanvas.width / 2, -this.vcanvas.height / 2, this.vcanvas.width, this.vcanvas.height);

@@ -3,7 +3,7 @@
 <head>
         <meta charset="utf-8" />
         <title>Sun and stuff</title>
-        <script type="text/javascript" src="sun/generator.js"></script>        
+        <script type="text/javascript" src="sun/generator.js"></script>
         <style>
 			@font-face {
 			    font-family: 'exo_2medium';
@@ -32,41 +32,12 @@
 </head>
 
 <body>
-<!-- Yandex.Metrika counter -->
-<script type="text/javascript">
-    (function (d, w, c) {
-        (w[c] = w[c] || []).push(function() {
-            try {
-                w.yaCounter24216865 = new Ya.Metrika({
-                    id:24216865,
-                    clickmap:true,
-                    trackLinks:true,
-                    accurateTrackBounce:true,
-                    webvisor:true
-                });
-            } catch(e) { }
-        });
-
-        var n = d.getElementsByTagName("script")[0],
-            s = d.createElement("script"),
-            f = function () { n.parentNode.insertBefore(s, n); };
-        s.type = "text/javascript";
-        s.async = true;
-        s.src = "https://mc.yandex.ru/metrika/watch.js";
-
-        if (w.opera == "[object Opera]") {
-            d.addEventListener("DOMContentLoaded", f, false);
-        } else { f(); }
-    })(document, window, "yandex_metrika_callbacks");
-</script>
-<noscript><div><img src="https://mc.yandex.ru/watch/24216865" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-<!-- /Yandex.Metrika counter -->
 <canvas  id='thebox'>Чето говно!</canvas>
 		<script>
 			var core = {
 				fontName: 'exo_2medium',
 				ratio: window.devicePixelRatio,
-				canvas: document.getElementById("thebox"), 
+				canvas: document.getElementById("thebox"),
 				realBias: {x:0,y:0},
 				maxDistance:0,
 				dt: 0,
@@ -130,7 +101,7 @@
 				this.dom.className = 'popup';
 				this.dom.addEventListener("animationend",function(){this.parentNode.removeChild(this); popups = []});
 				document.body.appendChild(this.dom);
-				
+
 			}
 
 			function coreSaver(period){
@@ -275,7 +246,7 @@
 			function getRegion(){
 				var region = uiText[6];
 				core.regions.forEach(function (r){
-					if (core.realBias.y >= r.l1 && core.realBias.y <= r.l2) region = r.name; 
+					if (core.realBias.y >= r.l1 && core.realBias.y <= r.l2) region = r.name;
 				});
 				return region;
 			}
@@ -286,7 +257,7 @@
 				return 'rgba('+Math.floor(interLine(colors[0].r,colors[1].r,x))+','+Math.floor(interLine(colors[0].g,colors[1].g,x))+','+Math.floor(interLine(colors[0].b,colors[1].b,x))+',1)';
 			}
 			function getVirtualY(position){
-				return toScale(core.realBias.y - position + toScale(core.center.y,true)) 
+				return toScale(core.realBias.y - position + toScale(core.center.y,true))
 			}
 			function getVirtualBias(){
 				return {x:toScale(-core.realBias.x),y:toScale(-core.realBias.y)};
@@ -312,7 +283,7 @@
 						ctx.stroke();
 					}
 				}
-				
+
 			}
 
 			function changeScale(s){
@@ -450,7 +421,7 @@
 											if (alpha < .0003) alpha = .0003;
 											ctx.arc(0,0,toScale(m.orbit),-Math.PI/2 - alpha,-Math.PI/2 + alpha);
 											ctx.arc(0,0,toScale(m.orbit),Math.PI/2 - alpha,Math.PI/2 + alpha);
-											
+
 										} else {
 											ctx.arc(0,0,toScale(m.orbit),0,Math.PI*2);
 										}
@@ -460,11 +431,11 @@
 									ctx.beginPath();
 									ctx.arc(toScale(m.orbit),0,toScale(m.radius),0,2*Math.PI);
 									ctx.closePath();
-									ctx.fill();	
+									ctx.fill();
 								ctx.restore()
 							}
 						})
-					} 
+					}
 					ctx.restore();
 				}
 			}
@@ -520,7 +491,7 @@
 								this.stack.splice(i,1);
 								i--;
 							}
-						
+
 						}
 					}
 				}
@@ -529,7 +500,7 @@
 			var Label = function(text,dX,absY,color,range,isSmart){
 				this.text = text;
 				this.dX = dX;
-				this.absY = absY; 
+				this.absY = absY;
 				this.color = color;
 				this.font = goodTextSize(20)+'px '+core.fontName;
 				this.range = range;
