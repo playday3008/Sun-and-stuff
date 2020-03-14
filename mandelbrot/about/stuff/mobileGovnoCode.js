@@ -19,7 +19,7 @@ function turnMobile(){
 	/*
 	if (ls){
 		localStorage.setItem('forced',true);
-		window.location.replace("http://sunandstuff.com/mandelbrot/about/mobile");
+		window.location.replace("Sun-and-stuff/mandelbrot/about/mobile");
 	} else {
 		console.log('You choice is clear.');
 	}
