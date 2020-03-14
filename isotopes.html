@@ -9,14 +9,15 @@
         <script src="isotopes/assets/chroma.js"></script>
         <script src="isotopes/assets/nuke.js"></script>
         <link href="isotopes/assets/latofonts.css" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
         <style>
             body, html {margin:0; width: 100%; height: 100%; font-family: 'LatoWeb', sans-serif; min-height: 400px; min-width: 600px;}
             body {background: rgb(14,14,26);}
             svg {
-            	width: calc(100vw - 80px); 
+            	width: calc(100vw - 80px);
             	height: calc(100vh - 80px);
             	margin: 40px 0 0 40px;
-            	
+
             }
             #service{
             	display: block;
@@ -153,10 +154,10 @@ Chart.prototype.generate = function(){
 	// Drawing cells
 	for (let i = 0; i < this.isotopes.length; i++){
 		let gx, gy;
-		
+
 			gx = (this.isotopes[i].n + 1) * this.cellSize + 14;
 			gy = this.vessel.clientHeight - (this.isotopes[i].z + 2) * this.cellSize - 14;
-		
+
 
 		this.isotopes[i].g = document.createElementNS('http://www.w3.org/2000/svg','g');
 		this.isotopes[i].rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
@@ -192,7 +193,7 @@ Chart.prototype.repaint = function(scheme,variable,domain,interpolation){
 			} else {
 				alive.animate(this.isotopes[i].rect, 'fill', 'rgb(34, 34, 56)', 500);
 			}
-		} 
+		}
 	}
 }
 Chart.prototype.switch = function(mode){

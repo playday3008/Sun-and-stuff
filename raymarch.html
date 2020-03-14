@@ -3,6 +3,7 @@
 <head>
         <meta charset="utf-8" />
         <title>Raymarching</title>
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
         <style>
             body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow-y: hidden;}
             .vessel {
@@ -16,7 +17,7 @@
 	<canvas class="vessel"></canvas>
 
 <script class="vsh" type="x-shader/x-fragment">
-	
+
 	attribute vec2 a_position;
 
 	void main(void){
@@ -43,7 +44,7 @@
 	}
 
 	float sphereSdf(vec3 p, vec3 c, float r){
-		return length(p - c) - r; 
+		return length(p - c) - r;
 	}
 
 	float cubeSdf(vec3 point, vec3 sides){
@@ -137,12 +138,12 @@
 		float s1 = shadow(p, light, length(light - p));
 		final += getPhong(p, o, light, lightColor, nrm) * s1;
 
-		
+
 		vec3 light2 = vec3(5.0 * sin(u_time * 2.0), 5.0 * cos(u_time * 2.0), 0.0);
 		vec3 lightColor2 = vec3(0.8, 0.0, 0.1);
 		float s2 = shadow(p, light2, length(light2 - p));
 		final += getPhong(p, o, light2, lightColor2, nrm) * s2;
-		
+
 
 		return final;
 
@@ -194,7 +195,7 @@
 	void main(void){
 
 		vec2 p = (-u_size.xy + 2.0 * gl_FragCoord.xy) / u_size.y;
-		
+
 		vec3 o = vec3(4.0 * sin(u_time / 10.), 1.8, 4.0 * cos(u_time / 10.));
 		vec3 c = vec3(0.0, 0.3, 0.0);
 		mat3 ctw = getCameraMatrix(o, c, 0.0);
@@ -203,7 +204,7 @@
 		vec3 rgb = render(o, d);
 
 		gl_FragColor = vec4(rgb, 1.0);
-		
+
 	}
 
 </script>
@@ -281,7 +282,7 @@
 		gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
 	}
 	render();
-	
+
 </script>
 </body>
 </html>

@@ -3,12 +3,13 @@
 <head>
         <meta charset="utf-8" />
         <title>Pendulum</title>
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
         <script src="clifford/vector.js"></script>
         <script src="clifford/light.js"></script>
         <style>
             body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow: hidden; background:#112;}
             canvas#vessel {
-            	width:100%; 
+            	width:100%;
             	height: 100%;
             }
             h1 {
@@ -116,7 +117,7 @@ class Core {
 			v = 0;//(Math.random()-.5)*10 - 0;
 			c = light(this.colorspace(Math.cos(this.time.tt/1000)/2+.5 + Math.random()*.4 - .2))
 		}
-		
+
 		// this.pendulums.push({a: a, v: v, la: a, lv: v, g1: light(this.colorspace(((1.042 + Math.random()*.4 - .2) - Math.sqrt((a-.84)**2 + (v+.58)**2))))});
 		this.pendulums.push({a: a, v: v, la: a, lv: v, g1: c});
 	}
@@ -132,7 +133,7 @@ class Core {
 
 		this.ctx.fillStyle = '#112';
 		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-		
+
 		// this.update();
 		this.drawPlot();
 		// this.drawPendulum();
@@ -190,7 +191,7 @@ class Core {
 			let p = this.pendulums[i];
 
 
-			
+
 			let dx = 0;
 			let dy = 0;
 
@@ -203,7 +204,7 @@ class Core {
 				let x1 = (Math.sin(a * p.v) + c * Math.cos(a * p.a));
 	            let y1 = (Math.sin(b * p.a) + d * Math.cos(b * p.v));
 
-	            p.a = x1; 
+	            p.a = x1;
 	            p.v = y1;
 
 				let gx0 = this.canvas.width * kx * (p.la-dx) + this.halfWidth;
@@ -222,16 +223,16 @@ class Core {
 			// p.a += dx/300;
 			// p.v += dy/300;
 
-		
+
 
 			// if (i===0) console.log(p.z);
-			
 
-			
 
-				
+
+
+
 				// this.vctx.lineCap = 'round';
-				
+
 
 			p.la = p.a;
 			p.lv = p.v;

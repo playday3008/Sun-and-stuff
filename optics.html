@@ -3,11 +3,12 @@
 <head>
         <meta charset="utf-8" />
         <title>Rays and stuff</title>
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
         <script src="optics/vector.js"></script>
         <style>
             body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow-y: hidden;}
             canvas#vessel {
-            	width:100%; 
+            	width:100%;
             	height: 100%
             }
         </style>
@@ -91,7 +92,7 @@ class Core {
 
 		//Parallel
 		// for (let h = 0; h < this.canvas.height; h += 10){
-		// 	this.rays.push(new Ray(this, new Vector(0,h), 0, this.depth, .1, 700));	
+		// 	this.rays.push(new Ray(this, new Vector(0,h), 0, this.depth, .1, 700));
 		// }
 
 		this.frame();
@@ -236,7 +237,7 @@ class Ray {
 		for (let i = 0; i < this.next.length; i++){
 			this.next[i].display();
 		}
-		
+
 	}
 	getClosestIntersection(solids){
 		let closestmag = Infinity;
@@ -301,7 +302,7 @@ class Ray {
 						p2 = false;
 					}
 				}
-			}	
+			}
 		}
 		if (p1 && p2){
 			intersection = p1.mag > p2.mag ? p2 : p1;
@@ -421,7 +422,7 @@ class Ray {
 
 				return intersection;
 			}
-		}	
+		}
 	}
 	getFresnel(normal){
 		return .1 + (1 - Math.abs(this.d.dot(normal))) * .3;
@@ -470,7 +471,7 @@ class Ray {
 					this.next.push(new Ray(this.core, this.target.clone(), this.target.reflection.clone(), this.depth - 1, energy * ri, this.wavelength));
 				}
 			}
-			
+
 		}
 	}
 	waveToRgb(w){
@@ -530,7 +531,7 @@ class Ray {
 	    let gamma = 0.80;
 	    let R = (red   > 0 ? 255*Math.pow(red   * factor, gamma) : 0);
 	    let G = (green > 0 ? 255*Math.pow(green * factor, gamma) : 0);
-	    let B = (blue  > 0 ? 255*Math.pow(blue  * factor, gamma) : 0); 
+	    let B = (blue  > 0 ? 255*Math.pow(blue  * factor, gamma) : 0);
 	    return {r:Math.round(R), g:Math.round(G), b:Math.round(B)};
 	}
 }
@@ -555,7 +556,7 @@ class Solid {
 
 					let edge = {
 						type: 'cut',
-						o: this.points[i], 
+						o: this.points[i],
 						d: this.points[i].distanceTo(this.points[j]),
 						o2: this.points[j]
 					};

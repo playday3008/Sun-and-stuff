@@ -3,6 +3,7 @@
 <head>
         <meta charset="utf-8" />
         <title>Hilbert curve</title>
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
         <script src="hilbert/vector.js"></script>
         <style type="text/css">
             html, body {
@@ -68,7 +69,7 @@ function Core(){
     }.bind(this);
     this.init = function(){
         let screen = {x: window.innerWidth, y: window.innerHeight};
-        
+
         if (this.canvas.width > this.canvas.height){
             this.hilbert(screen.x / 2, screen.y,-screen.y,0,0,-screen.y,this.iterations);
             this.hilbert(screen.x / 2, 0, screen.y, 0, 0, screen.y,this.iterations);
@@ -76,7 +77,7 @@ function Core(){
             this.hilbert(screen.x, screen.y / 2,0, screen.x,-screen.x,0,this.iterations);
             this.hilbert(0, screen.y / 2, 0, -screen.x, screen.x, 0, this.iterations);
         }
-        
+
         this.draw();
     }.bind(this);
     this.points = [];
@@ -93,7 +94,7 @@ Core.prototype.hilbert = function(x0, y0, xis, xjs, yis, yjs, n){
     } else {
         this.points.push({x: x0+(xis+yis)/2, y:y0+(xjs+yjs)/2});
     }
-    
+
 };
 Core.prototype.draw = function(){
     /*

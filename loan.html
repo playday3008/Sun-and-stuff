@@ -1,7 +1,8 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"> 
-<html xmlns="http://www.w3.org/1999/xhtml"> 
-	<head> 
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
 		<title>Кредит надо?</title>
+		<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
 		<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1" />
 		<link rel="stylesheet" href="loan/tt.css" type="text/css" charset="utf-8" />
@@ -137,7 +138,7 @@
 		}
 
 		</style>
-	</head> 
+	</head>
 	<body>
 		<div class="visual">
 			<svg></svg>
@@ -176,7 +177,7 @@
 				</div>
 			</div>
 		</div>
-		
+
 
 		<script type="text/javascript">
 
@@ -229,7 +230,7 @@
 								buffer.value = 0;
 							}
 						}
-						
+
 					};
 					let updateByKey = (e)=>{
 						if (e.which === 38 || e.which === 40){
@@ -239,11 +240,11 @@
 								hidden = 0;
 							}
 							buffer.value = +buffer.value + (e.which === 38 ? increment : -increment);
-							updateValue();	
+							updateValue();
 						} else if (e.which === 13){
 							buffer.blur();
 						}
-						
+
 					}
 					buffer.addEventListener('input', updateValue);
 					buffer.addEventListener('keydown',updateByKey);
@@ -266,7 +267,7 @@
 			core.b_percents.innerHTML = Math.round(core.percents * 100 * 10)/10;
 			core.b_insurance.innerHTML = Math.round(core.insurance * 100 * 10)/10;
 
-			core.b_details.innerHTML = 'будешь платить '+beautify(result.total.monthly)+' ₽ каждый месяц,<br/>всего придётся отдать '+beautify(result.total.total)+' ₽.<br/>Банку при этом уйдёт '+beautify(result.total.bankCash)+' ₽,  то есть '+result.total.bankPercent+'% от ' + beautify(core.loan) + '.<br />Для нормальной жизни при этом <br />тебе нужно зарабатывать не меньше ' + beautify(Math.ceil(result.total.monthly*2))+ '₽<br/>Такие дела.';
+			core.b_details.innerHTML = 'будешь платить '+beautify(result.total.monthly)+' ₽ каждый месяц,<br/>всего придётся отдать '+beautify(result.total.total)+' ₽.<br/>Банку при этом уйдёт '+beautify(result.total.bankCash)+' ₽, то есть '+result.total.bankPercent+'% от ' + beautify(core.loan) + '.<br />Для нормальной жизни при этом <br />тебе нужно зарабатывать не меньше ' + beautify(Math.ceil(result.total.monthly*2))+ '₽<br/>Такие дела.';
 
 			core.b_svg.innerHTML = '';
 			let barWidth = 100 / result.rates.length;
@@ -329,7 +330,7 @@
 					core.b_svg.appendChild(g);
 				})
 			}
-			
+
 
 		}
 
@@ -384,10 +385,10 @@
 			}
 
 
-			
+
 
 		};
-		
+
 		update();
 
 

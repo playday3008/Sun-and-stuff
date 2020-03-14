@@ -3,6 +3,7 @@
 <head>
         <meta charset="utf-8" />
         <title>Metronome</title>
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
         <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
         <style>
             body, html {margin:0; width: 100%; height: 100%; min-height: 700px; overflow: hidden; min-width: 100px; font-family: 'Lato', sans-serif}
@@ -42,7 +43,7 @@
           		border-radius: 150px;
           		align-items: center;
           		justify-content: center;
-          		
+
           	}
           	@media all and (orientation:portrait){
           		#play {
@@ -271,7 +272,7 @@
 							this.signature.innerHTML = this.size + (this.size == 1 ? 'st' : this.size == 2 ? 'nd' : this.size == 3 ? 'rd' : 'th');
 						};
 					} else if (e.keyCode == 221){
-						if (this.size < 9){ 
+						if (this.size < 9){
 							this.size ++;
 							this.signature.innerHTML = this.size + (this.size == 1 ? 'st' : this.size == 2 ? 'nd' : this.size == 3 ? 'rd' : 'th');
 						}
@@ -387,7 +388,7 @@
 				pulsar.update();
 			},4);
 
-			(function render(){	
+			(function render(){
 				pulsar.ball.setAttribute('transform', 'translate(0,' + (Math.sin(-pulsar.wait/pulsar.time()*Math.PI)*pulsar.svg.clientHeight/6) + ')');
 				for (let i = 0; i < pulsar.waves.length; i++){
 					let elapsed = window.performance.now() - pulsar.waves[i].cycle;
@@ -396,11 +397,11 @@
 						pulsar.waves[i].style.strokeWidth = (2 - 2 * elapsed / 1000) + '%';
 						//pulsar.waves[i].style.opacity = (1500 - elapsed)/1500;
 					} else {
-						pulsar.gwave.removeChild(pulsar.waves.shift()); 
+						pulsar.gwave.removeChild(pulsar.waves.shift());
 					}
 				}
 				requestAnimationFrame(render);
-			})(); 
+			})();
 
 		</script>
 </body>

@@ -3,6 +3,7 @@
 <head>
         <meta charset="utf-8" />
         <title>CMYK</title>
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
         <style>
             body, html {margin:0; width: 100%; height: 100%;}
             .emperror {
@@ -133,7 +134,7 @@ class Printer {
             id = this.ctx.getImageData(0, 0, w, h);
 
             let cmyk = [];
-            
+
             for (let i = 0; i < id.data.length; i+=4){
 
                 let p = id.data;
@@ -167,7 +168,7 @@ class Printer {
                         this.printLayer(cmyk, 'k', w);
                     });
                 });
-            }); 
+            });
 
         }
 
@@ -182,9 +183,9 @@ class Printer {
                     let channels = {};
                     channels[channel] = true
                     if (i < cmyk.length) this.drawDot(cmyk, i, w, channels);
-                    i++;  
+                    i++;
                 }
-                
+
             } else {
                 clearInterval(this.interval);
                 if (onFinish) onFinish();
@@ -327,7 +328,7 @@ let printer = new Printer(document.querySelector('.vessel'), document.querySelec
 //         id = ctx.getImageData(0, 0, w, h);
 
 //         let cmyk = [];
-        
+
 //         for (let i = 0; i < id.data.length; i+=4){
 
 //             let p = id.data;
@@ -361,7 +362,7 @@ let printer = new Printer(document.querySelector('.vessel'), document.querySelec
 //                     printLayer(cmyk, 'k', w);
 //                 });
 //             });
-//         }); 
+//         });
 
 //     }
 
@@ -376,9 +377,9 @@ let printer = new Printer(document.querySelector('.vessel'), document.querySelec
 //                 let channels = {};
 //                 channels[channel] = true
 //                 if (i < cmyk.length) drawDot(cmyk, i, w, channels);
-//                 i++;  
+//                 i++;
 //             }
-            
+
 //         } else {
 //             clearInterval(interval);
 //             if (onFinish) onFinish();

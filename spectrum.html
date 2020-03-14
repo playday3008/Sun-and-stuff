@@ -4,6 +4,7 @@
 	<head>
 		<meta charset="utf-8" />
 		<title>Spectrometer</title>
+		<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
 		 <script src="spectrum/light2.js"></script>
 		<style type="text/css">
 
@@ -143,7 +144,7 @@
 					this.analyser.getByteFrequencyData(freqs);
 					this.analyser.getFloatFrequencyData(dbs);
 					this.analyser.getByteTimeDomainData(tdd);
-					
+
 					this.drawLinearCoordsSpecter(freqs, dbs, tdd);
 
 				}
@@ -152,7 +153,7 @@
 					let vx = this.vcanvas.width - this.speed;
 
 					let level = {high: 0, mid: 0, low: 0};
-					
+
 					for (let i = 0; i < freqs.length; i++){
 
 
@@ -242,10 +243,10 @@
 					let tts = 0, ttss = 0;
 
 					if (this.sound){
-						
+
 						tts = Math.floor(this.playTime / 1000);
 						ttss = Math.floor(this.playTime / 100);
-						
+
 					}
 
 					if (ttss > this.ttss && ttss % 10 !== 0){
@@ -272,7 +273,7 @@
 
 					let stops = [100, 440, 1000, 2000, 5000, 10000, 15000, 20000];
 					let leftX = this.canvas.width - 8 * this.ratio;
-					
+
 					this.ctx.fillStyle = '#fff'
 					this.ctx.font = 10 * this.ratio + 'px Lato';
 					this.ctx.textAlign = 'right';
@@ -415,7 +416,7 @@
 					} else {
 						return index * this.actx.sampleRate / 2 / this.analyser.frequencyBinCount + 1;
 					}
-					
+
 				}
 
 				drawDb(value){

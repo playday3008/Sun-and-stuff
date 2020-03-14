@@ -3,6 +3,7 @@
 <head>
         <meta charset="utf-8" />
         <title>Mandelbrot</title>
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
         <link href="https://fonts.googleapis.com/css?family=Exo+2" rel="stylesheet">
         <style>
             body, html {margin:0; width: 100%; height: 100%; overflow: hidden}
@@ -134,7 +135,7 @@ function Mandelbrot(){
     this.range = function() {return 1 / this.zoom};
     this.scale = function() {return this.canvas.height / (this.range() * 2)};
     this.bias = function() {return {x: this.canvas.width / 2 - this.center.x * this.scale(), y: - this.canvas.height / 2 - this.center.y * this.scale()}};
-    
+
 
     this.renderUnit = function(ctx,message){
         this.worker = new Worker('worker.js');
@@ -159,11 +160,11 @@ function Mandelbrot(){
         } else if (ratio == 3){
             this.ratio = window.devicePixelRatio * 2;
         }
-        
+
         if (iterations > 10 && iterations <= 3000){
             this.maxIterations = iterations;
         }
-        
+
         if (currentRatio != this.ratio){
             this.vcanvas.width = this.canvas.width;
             this.vcanvas.height = this.canvas.height;

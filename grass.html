@@ -4,6 +4,7 @@
 		<script type="text/javascript" src="grass/service.js"></script>
         <meta charset="utf-8" />
         <title>Interpolation grass</title>
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
         <style>
             body, html {margin:0; width: 100%; height: 100%; font-family: 'Open Sans', sans-serif; min-height: 700px; overflow: hidden; min-width: 100px}
           	#thebox {position: absolute; top: 50%; margin-top: -300px; left: 50%; margin-left: -400px; border: 1px dotted #aaa;}
@@ -16,7 +17,7 @@
 <input type="button" value="x1" onclick="core.xTime = 1" />
 <input type="button" value="x10" onclick="core.xTime = 10" />
 <input type="button" value="x100" onclick="core.xTime = 100" /><br />
-		<script>		
+		<script>
 			var canvas 		= document.getElementById("thebox"),
 			    ctx    		= canvas.getContext('2d');
 
@@ -132,7 +133,7 @@
 				this.matrix = [];
 				this.items = [];
 				this.fillChunk();
-				
+
 			};
 			Chunk.prototype.fillChunk = function(){
 				for (fy=0;fy<core.cellRow;fy++){
@@ -217,7 +218,7 @@
 					this.color = mapColor(this.elevation,core.waterLevel,1,117+this.rHue,136,37,214+this.rHue,206,142);
 				} else {
 					this.color = mapColor(this.elevation,core.waterLevel,1,112,156,20,255,255,180);
-				} 
+				}
 			};
 			Cell.prototype.display = function(context){
 				context.save();
@@ -248,9 +249,9 @@
 				this.sortIndex = this.ay*100 + this.ax;
 				//this.sprite = {x:this.img.width,y:this.img.height,dx:0,rx:Math.floor((Math.random()-.5)*core.cellSize),scale:1};
 			};
-			
+
 			Item.prototype.onTick = function(){
-				
+
 			}
 			Item.prototype.update = function(){
 
@@ -387,7 +388,7 @@
 				this.velocity = {x:0,y:0};
 				this.acceleration = {x:0,y:0};
 				this.force = {x:0,y:0};
-				
+
 			};
 			ViewPort.prototype.update = function(){
 				/*
@@ -403,7 +404,7 @@
 
 				this.acceleration.x = 0;
 				this.acceleration.y = 0;
-				
+
 				core.bias.x = Math.round(this.x);
 				core.bias.y = Math.round(this.y);
 				*/
@@ -420,7 +421,7 @@
 						var found = false;
 						var index = false;
 						for (s = 0; s < core.chunks.length; s++){							//Searching for already loaded chunk in this position
-							if (core.chunks[s].ix == cx && core.chunks[s].iy == cy){		
+							if (core.chunks[s].ix == cx && core.chunks[s].iy == cy){
 								found = true;
 								index = s;
 							};
@@ -431,7 +432,7 @@
 								var created = new Chunk(cx,cy);
 								//worker.postMessage(created);
 								updated.push(created);
-								
+
 							}
 					}
 				};
@@ -475,7 +476,7 @@
 
 
 			function findCell(x,y){
-				
+
 				var ciy = Math.floor(y / core.chunkSize);
 				var cix = Math.floor(x / core.chunkSize);
 				var theChunk = false;
@@ -490,8 +491,8 @@
 					var theCell = theChunk.matrix[iy][ix];
 					return theCell ? theCell : false;
 				}
-				
-				
+
+
 			}
 
 			function cellHover(x,y){
@@ -560,11 +561,11 @@
 				core.mouse.y = e.layerY;
 			});
 
-			
+
 			canvas.addEventListener('click',function(e){
 				core.hero.goto(core.hoverCell);
 			});
-			
+
 			/* ADDING TREE ON CLICK
 			canvas.addEventListener('click',function(e){
 				var theCell = findCell(e.layerX,e.layerY);

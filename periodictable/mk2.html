@@ -3,6 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <title>Таблица Менделеева β</title>
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
         <script src="mk2/assets/light.js"></script>
         <script src="mk2/assets/periodic.js@v7"></script>
         <script type="text/javascript" src="mk2/assets/data.js@v4"></script>
@@ -12,7 +13,7 @@
         <!-- <meta property="og:image" content="assets/cover.jpg"> -->
         <!-- <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' /> -->
         <!-- <meta name='viewport' content='width=device-width' /> -->
-        
+
         <style>
             html {
               height:100%;
@@ -88,14 +89,14 @@
               border-radius: 4px 0 0 4px;
             }
             .dataMode .switch .s_b {
-              
+
               border-left: none !important;
               /*padding: .2em .5em 0 .5em;*/
               border-radius: 0 4px 4px 0;
               margin: 0 .5em 0 0;
             }
             .dataMode .switch .s_iso {
-              
+
               /*padding: .2em .5em 0 .5em;*/
               border-radius: 4px;
             }
@@ -122,7 +123,7 @@
             .dataMode .switch .dim {
               border: 1px solid #0003;
               color: #0003;
-            }            
+            }
 
             .dataMode.chosen .switch .chosen {
               background: #000;
@@ -190,7 +191,7 @@
             .controls .cMinus {
               border-radius: 0 0 32px 32px;
             }
-            
+
 
         </style>
     </head>
@@ -228,7 +229,7 @@
   <script type="text/javascript">
 
   let core;
-    
+
     window.onload = ()=>{
 
       core = new Chemistry(document.querySelector('.canvas'), getElementsData(), getWords(), document.querySelector('.dataModes'), document.querySelector('.controls'));

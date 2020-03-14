@@ -3,10 +3,11 @@
 <head>
         <meta charset="utf-8" />
         <title>Automata</title>
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
         <style>
             body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow: hidden;}
             canvas#vessel {
-            	width:100%; 
+            	width:100%;
             	height: 100%
             }
             .shop{
@@ -34,7 +35,7 @@ class Core {
 		this.canvas.height = this.canvas.clientHeight * this.ratio;
 		this.ctx = this.canvas.getContext('2d');
 		this.ctx.imageSmoothingEnabled = false;
-		
+
 		this.time = {
 			tt: 0,
 			dt: 0,

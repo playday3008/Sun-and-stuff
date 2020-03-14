@@ -3,6 +3,7 @@
 <head>
         <meta charset="utf-8" />
         <title>Таблица сложения</title>
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
         <script src="sum/assets/alive.js"></script>
         <!-- <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1"> -->
         <style>
@@ -112,7 +113,7 @@
             	bottom: 0;
             	font-size: .6rem;
             }
- 
+
             #numpad{
             	display: block;
             	position: absolute;
@@ -163,7 +164,7 @@
 <div id ="mark"></div>
 <div id = "example">7 × 5 = </div>
 <input id="numpad" type="tel">
-<script>		
+<script>
 	var core = {
 		ratio : window.devicePixelRatio,
 		lt : Date.now(),
@@ -353,7 +354,7 @@
 	function buildTable(){
 		if (core.storage.length == 0){
 			createStorage();
-		} 
+		}
 		updateCells();
 	};
 
@@ -373,7 +374,7 @@
 				};
 			}
 		}
-		aTime = activeExamples > 0 ? Math.round(aTime / activeExamples)/1000+' с' : 'Еще не посчиталось'; 
+		aTime = activeExamples > 0 ? Math.round(aTime / activeExamples)/1000+' с' : 'Еще не посчиталось';
 		document.getElementById('totalCount').innerHTML = totalCount;
 		document.getElementById('combo').innerHTML = core.combo;
 		document.getElementById('atime').innerHTML = aTime;
@@ -381,7 +382,7 @@
 	};
 
 	function updateGrade(){
-		
+
 		if (core.grade == 0){
 			var promote = true;
 			for (i=0;i<core.sortedStorage[0].length;i++){
@@ -452,7 +453,7 @@
 
 		// This code draws full table with all posible examples
 		/*
-		
+
 		for (i=0; i < core.storage.length; i++){
 				var div = core.container.children[i] || document.createElement('div');
 				//div.innerHTML = core.storage[i].c;
@@ -468,7 +469,7 @@
 				hint.innerHTML = core.storage[i].string + core.storage[i].c + '<br />Сложность: ' + (core.storage[i].grade+1) + '<br />' + (core.storage[i].timesShown > 0 ? 'Встречался '+core.storage[i].timesShown+ ([2,3,4].indexOf(core.storage[i].timesShown%10) != -1 ? ' раза' : ' раз') : 'Не встречался');
 				div.appendChild(hint);
 
-		
+
 				updateLayout();
 				div.style.top = Math.floor(i/100) * (100/100) + '%';
 				div.style.left = i%100 * (100/100) + '%';
@@ -491,7 +492,7 @@
 				div.style.opacity = 0;
 				if (!core.container.children[i]) core.container.appendChild(div);
 		}
-		
+
 		*/
 
 
@@ -601,7 +602,7 @@
 			} else {						// BAD
 				flash(false);
 				core.combo = 0;
-				core.currentExample.weight += core.penalty;		
+				core.currentExample.weight += core.penalty;
 			};
 			localStorage.setItem('Sum', JSON.stringify(core.storage));
 			localStorage.setItem('Combo_s', core.combo);
@@ -627,7 +628,7 @@
 			} else {
 				revealSequence();
 			}
-			
+
 		} else if (core.mode != 1 && signal == 1){
 			core.header.style.marginLeft = '0px';
 			document.getElementById('banner').style.marginLeft = '0px';
@@ -672,7 +673,7 @@
 		core.container.style.opacity = '1';
 		alive.animate(core.container,'opacity',0,1200);
 	};
-	
+
 	function revealTable(){
 		core.container.style.opacity = '0';
 		alive.animate(core.container,'opacity',1,1200);
@@ -708,7 +709,7 @@
 			switchMode(1);
 		}
 	});
-	
+
 	document.body.addEventListener('touchstart',function(){
 		if (core.isMobile){
 			if (core.mode == 0) {
@@ -751,7 +752,7 @@
 		core.hint.style.display = 'none';
 		core.mark.style.display = 'none';
 	});
-	
+
 	function ignition(){
 		console.log('Resources loaded, lets begin');
 		buildTable();
