@@ -138,7 +138,7 @@ function Mandelbrot(){
 
 
     this.renderUnit = function(ctx,message){
-        this.worker = new Worker('worker.js');
+        this.worker = new Worker('mandelbrot/worker.js');
         this.worker.onmessage = function(event){
             ctx.putImageData(event.data.map,event.data.origin.x,event.data.origin.y);
             this.worker.terminate();
