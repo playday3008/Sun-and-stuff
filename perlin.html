@@ -32,7 +32,7 @@
 
 			var loadStack = [];
 
-			var worker = new Worker('worker.js');
+			var worker = new Worker('perlin/worker.js');
 			worker.onmessage = function(event){
 				var tmpChunk = new Chunk(event.data.position.x,event.data.position.y);
 				tmpChunk.pixels = event.data.pixels;
