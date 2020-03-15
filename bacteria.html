@@ -41,7 +41,7 @@
 					}
 				}
 				if (i>0) {this.vacancy = false} else {
-					var sndi = new Audio("pop.wav");
+					var sndi = new Audio("bacteria/pop.wav");
 					sndi.play();
 				};
 			}
@@ -62,7 +62,7 @@
 				this.speed = 2 * (1 + 2*Math.random());
 				this.birthRate = .00005;
 				this.image = new Image();
-				this.image.src = 'sprite'+colony.id+'.gif';
+				this.image.src = 'bacteria/sprite'+colony.id+'.gif';
 				this.colony = colony;
 				this.age = 0;
 				this.ageMax = 3000 + Math.random()*4000;
