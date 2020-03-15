@@ -561,7 +561,7 @@ class Core {
 
 		for (let i = 0; i < this.cells.length; i++){
 			if (this.problems[i].weight < .01) {
-				this.cells[i].style.backgroundImage = 'url(assets/boss.png)';
+				this.cells[i].style.backgroundImage = 'url(multiply/assets/boss.png)';
 				this.cells[i].style.color = '#5c2a11';
 			} else if (this.problems[i].weight < 1){
 				let color = this.getColor(this.mainSet, 1 - this.problems[i].weight, true, true);
@@ -665,7 +665,7 @@ class Core {
 			let prize = document.createElement('div');
 			prize.classList.add('ssmtp3_prize', 'ssmtp3_locked');
 			let img = document.createElement('img');
-			img.setAttribute('src', 'assets/lock.png');
+			img.setAttribute('src', 'multiply/assets/lock.png');
 			img.style.transitionDelay = Math.floor(Math.random() * 300) + 'ms';
 			prize.appendChild(img);
 			let hint = document.createElement('div');
@@ -719,7 +719,7 @@ class Core {
 			if (!this.prizes[i].done && this.prizes[i].unlocked) {
 				this.prizeCells[i].innerHTML = '';
 				let img = document.createElement('img');
-				img.setAttribute('src', 'assets/' + this.prizes[i].source);
+				img.setAttribute('src', 'multiply/assets/' + this.prizes[i].source);
 				img.style.transitionDelay = Math.floor(Math.random() * 300) + 'ms';
 				this.prizeCells[i].appendChild(img);
 				let hint = document.createElement('div');
