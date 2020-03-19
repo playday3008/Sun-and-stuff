@@ -145,7 +145,7 @@
 		</div>
 		<div class="info">
 			<div class="huge">
-				<span>Если занять у банка </span><nobr><span class="input loan">xxx</span> <span> ₽</span></nobr><br/><span>на </span><span class="input term">xxx</span><span> </span><span class="yearWord">yyy</span><span> под </span><span class="input percents">xxx</span><span>% годовых, </span><br><span>с ежемесячной страховкой в </span><span class="input insurance"></span><span>%, то</span>
+				<span>Если занять у банка </span><nobr><span class="input loan">xxx</span><span> ₽</span></nobr><br/><span>на </span><span class="input term">xxx</span><span> </span><span class="yearWord">yyy</span><span> под </span><span class="input percents">xxx</span><span>% годовых, </span><br><span>с ежемесячной страховкой в </span><span class="input insurance"></span><span>%, то</span>
 			</div>
 			<div class="normal">
 			</div>
@@ -267,7 +267,7 @@
 			core.b_percents.innerHTML = Math.round(core.percents * 100 * 10)/10;
 			core.b_insurance.innerHTML = Math.round(core.insurance * 100 * 10)/10;
 
-			core.b_details.innerHTML = 'будешь платить '+beautify(result.total.monthly)+' ₽ каждый месяц,<br/>всего придётся отдать '+beautify(result.total.total)+' ₽.<br/>Банку при этом уйдёт '+beautify(result.total.bankCash)+' ₽, то есть '+result.total.bankPercent+'% от ' + beautify(core.loan) + '.<br />Для нормальной жизни при этом <br />тебе нужно зарабатывать не меньше ' + beautify(Math.ceil(result.total.monthly*2))+ '₽<br/>Такие дела.';
+			core.b_details.innerHTML = 'будешь платить '+beautify(result.total.monthly)+' ₽ каждый месяц,<br/>всего придётся отдать '+beautify(result.total.total)+' ₽.<br/>Банку при этом уйдёт '+beautify(result.total.bankCash)+' ₽, то есть '+result.total.bankPercent+'% от ' + beautify(core.loan) + '.<br />Для нормальной жизни при этом <br />тебе нужно зарабатывать не меньше ' + beautify(Math.ceil(result.total.monthly*2))+ '₽<br/>Такие дела.';
 
 			core.b_svg.innerHTML = '';
 			let barWidth = 100 / result.rates.length;
