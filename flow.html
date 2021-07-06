@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>Flow field</title>
+        <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; background: #112;}
+            canvas {width: 100%; height: 100%; /*image-rendering: pixelated;*/}
+            canvas.bloom {
+            	display: block;
+            	position: absolute;
+            	top: 0;
+            	left: 0;
+            	filter: contrast(8) brightness(.5) blur(30px);
+            	mix-blend-mode: screen;
+            	opacity: .8;
+            	transition: opacity .2s;
+            }
+            .controls {
+            	color: #FFF;
+            	font-family: Georgia;
+            	font-size: 13px;
+            	margin: 24px;
+            }
+            .controls span {
+            	display: inline-block;
+            	width: 140px;
+            	margin: 0 0 6px 0;
+            }
+            .controls input[type=range] {
+            	width: 300px;
+            }
+            .stalker {
+            	position: absolute;
+            	bottom: -12px;
+            	left: 50%;
+            	transform: translate(-50%, 0);
+            	font-size: 32px;
+            	color: #fff;
+            	opacity: 0;
+            	transition: opacity 2s ease;
+            }
+        </style>
+        <meta property="og:title" content="Flow field">
+        <meta property="og:description" content="Some worms living inside a 2d slice of a 3d simplex noise vector field on a torus surface">
+        <meta property="og:type" content="website">
+        <meta property="og:image" content="cover.png">
+        <script type="text/javascript" src="flow/light.js"></script>
+        <script type="text/javascript" src="flow/simplex.js"></script>
+</head>
+
+<body>
+<canvas class="core">Чето говно!</canvas>
+<canvas class="bloom">Ваще</canvas>
+<div class="stalker">Controls</div>
+<div class="controls">
+	<span>Universe address</span>
+	<input class="seed" type="num" min=0 max=20 value="12345641" oninput="setSeed(+this.value)">
+	<input type="button" value="Random" onclick="let seed = Math.floor(Math.random() * 9999999999999999); document.querySelector('.seed').value = seed; setSeed(seed)">
+	<br>
+	<span>Draw with</span>
+	<input type="button" value="Fire" onclick="setScheme('fire')">
+	<input type="button" value="Ice" onclick="setScheme('ice')">
+	<input type="button" value="Inferno" onclick="setScheme('inferno')">
+	<input type="button" value="Radio" onclick="setScheme('radio')">
+	<input type="button" value="Depth" onclick="setScheme('depth')">
+	<input type="button" value="Density" onclick="setScheme('density')">
+	<input type="button" value="Sunshine" onclick="setScheme('sunshine')">
+	<input type="button" value="Bloom" onclick="setScheme('bloom')">
+	<input type="button" value="Gothic" onclick="setScheme('gothic')">
+	<input type="button" value="Royalty" onclick="setScheme('royal')">
+	<input type="button" value="Copper" onclick="setScheme('copper')">
+	<br>
+	<span>Confidence</span>
+	<input type="button" value="Better safe than sorry" onclick="count = 3000; resetPoints(3000)"><input type="button" value="Better sorry than safe" onclick="count = 10000; resetPoints(10000)"><input type="button" value="Duke Nukem" onclick="count = 30000; resetPoints(30000)">
+	<br>
+	<span>Brutality</span>
+	<input type="range" min=1 max=10 value="1" oninput="ctx.globalAlpha = this.value * .1">
+	<br>
+	<span>Confusion</span>
+	<input type="range" min=10 max=1000 value="160" oninput="scale = this.value * .01">
+	<br>
+	<span>Field stability</span>
+	<input type="range" min=1 max=100 value="80" oninput="slowdown = this.value * 1000">
+	<br>
+	<span>Color stability</span>
+	<input type="range" min=10 max=30000 value="9000" oninput="colorSlowDown = +this.value">
+	<br>
+	<span>Zeal</span>
+	<input type="range" min=1 max=30 value="5" oninput="force = this.value * .01 * ratio">
+	<br>
+	<span>Individuality</span>
+	<input type="range" min=0 max=100 value="20" onchange="colorVariation = this.value * .01; for (let i = 0; i < points.length; i++){points[i].colorDelta = Math.floor(colors.length * Math.random() * colorVariation)}">
+	<br>
+	<span>Press us</span>
+	<input type="button" value="Wipe" onclick="ctx.clearRect(0,0,w,h); ctx2.clearRect(0,0,w,h);">
+	<input type="button" value="Toggle epicness" onclick="bloom = !bloom; if (bloom) canvas2.style.opacity = .8; else canvas2.style.opacity = 0">
+</div>
+<script type="text/javascript">
+
+	//NOISE
+	
+	//Setup canvas
+	const canvas = document.querySelector(`.core`)
+	const ratio = devicePixelRatio || 1
+	const w = Math.floor(canvas.clientWidth * ratio)
+	const h = Math.floor(canvas.clientHeight * ratio)
+	canvas.width = w
+	canvas.height = h
+	ctx = canvas.getContext(`2d`)
+
+	const canvas2 = document.querySelector(`.bloom`)
+	canvas2.width = w
+	canvas2.height = h
+	ctx2 = canvas2.getContext(`2d`)
+
+	//Prefs
+	let scale = 1.6
+	let quality = 16
+	let agility = 1
+	let slowdown = 80000
+	let colorSlowDown = 9000
+	let vectorLength = 40
+	let count = 10000
+	let force = .05 * ratio
+	let freedom = .99
+	let colorVariation = .47
+	let bloom = true
+
+	//Setup noise
+	let noise = OpenSimplex2S(7985530388843081)
+	let color = light(`fire`)
+	let colors = []
+	for (let i = 0; i < 1000; i++){
+		colors.push(color.rgb(i / 1000))
+	}
+
+	//Generate
+	let points = []
+	resetPoints(count)
+	let flow = []
+	for (let i = 0; i < quality; i++){flow.push([])}
+
+
+	ctx.strokeStyle = `#000`
+	ctx.fillStyle = `#112`
+	ctx.fillRect(0,0,w,h)
+	ctx.lineWidth = ratio
+	ctx.globalAlpha = .1
+	// ctx.globalCompositeOperation = `screen`
+	// ctx.fillStyle = `#fff`
+
+	//Hint
+	const stalker = document.querySelector(`.stalker`)
+	const dejavu = localStorage.getItem('ss_flow')
+	// console.log(dejavu)
+	if (!dejavu){
+		stalker.style.opacity = 1
+		document.addEventListener('scroll',e=>{
+			stalker.style.opacity = 0
+			localStorage.setItem('ss_flow', 'Achievement unlocked: figured out how to scroll stuff on the internet.')
+		})
+	}
+
+	//Draw
+	frame(ctx, w, h)
+
+	//Functions
+	function resetPoints(c){
+		points = []
+		for (let i = 0; i < c; i++){points.push({px: Math.random() * w, py: Math.random() * h, vx: Math.random(), vy: Math.random(), ppx: false, ppy: false, colorDelta: Math.floor(colors.length * Math.random() * colorVariation)})}
+	}
+
+	function setSeed(s){
+		if (typeof s === `number` && s >= 0 && s % 1 === 0){
+			noise = OpenSimplex2S(s)
+		}
+	}
+
+	function setScheme(map){
+		color = light(map)
+		colors = []
+		for (let i = 0; i < 1000; i++){
+			colors.push(color.rgb(i / 1000))
+		}
+	}
+
+	function frame(ctx, w, h){
+		requestAnimationFrame(_=>{frame(ctx,w,h)})
+
+		updateFlow(flow)
+		updatePoints(points, flow)
+		
+		// ctx.clearRect(0, 0, w, h)
+
+		//Draw flow
+		// for (let y = 0; y < quality; y++){
+		// 	for (let x = 0; x < quality; x++){
+
+		// 		ctx.save()
+		// 		ctx.translate(w / quality * x, h / quality * y)
+		// 		ctx.beginPath()
+		// 		ctx.moveTo(0, 0)
+		// 		ctx.lineTo(Math.cos(flow[y][x]) * vectorLength, Math.sin(flow[y][x]) * vectorLength)
+		// 		ctx.closePath()
+		// 		ctx.stroke()
+		// 		ctx.restore()
+
+		// 	}
+		// }
+
+		//Draw Points
+		let colorIndex = Math.floor((Math.cos(performance.now() / colorSlowDown) * .5 + .5) * colors.length)
+		for (let i = 0; i < points.length; i++){
+
+			let newIndex = (colorIndex + points[i].colorDelta)
+			if (newIndex > colors.length - 1) newIndex = colors.length - 1 - newIndex % (colors.length - 1)
+			ctx.strokeStyle = colors[newIndex]
+			ctx.beginPath()
+			ctx.moveTo(points[i].ppx, points[i].ppy)
+			ctx.lineTo(points[i].px, points[i].py)
+			ctx.stroke()
+
+			// if (Math.random() > .9){
+			// 	ctx.save()
+			// 	ctx.fillStyle = colors[newIndex]
+			// 	ctx.globalAlpha = 1
+			// 	ctx.fillRect(points[i].px, points[i].py,ratio,ratio)
+			// 	ctx.restore()
+			// }
+
+		}
+
+		//Bloom
+		if (bloom) {
+			ctx2.clearRect(0,0,w,h)
+			ctx2.drawImage(canvas,0,0)
+		}
+
+	}
+
+	function updateFlow(flow){
+
+		let norm = 1 / quality
+
+		for (let y = 0; y < quality; y++){
+			for (let x = 0; x < quality; x++){
+
+				flow[y][x] = noise.noise3_Classic(x * norm * scale, y * norm * scale, performance.now() / slowdown) * Math.PI * 2 * agility
+
+			}
+		}
+
+	}
+
+	function updatePoints(points, flow){
+
+		for (let i = 0; i < points.length; i++){
+
+			let p = points[i]
+
+			let flowCellX = Math.floor(p.px / w * quality)
+			let flowCellY = Math.floor(p.py / h * quality)
+			let c = flow[flowCellY][flowCellX]
+
+			p.vx += Math.cos(c) * force
+			p.vy += Math.sin(c) * force
+
+			p.vx *= freedom
+			p.vy *= freedom
+
+			p.ppx = p.px
+			p.ppy = p.py
+
+			p.px += p.vx
+			p.py += p.vy
+
+			if (p.px > w) p.px = p.ppx = p.px % w
+			if (p.py > h) p.py = p.ppy = p.py % h
+			if (p.px < 0) p.px = p.ppx = w + p.px
+			if (p.py < 0) p.py = p.ppy = h + p.py
+
+		}
+
+	}
+
+</script>
+</body>
+</html>

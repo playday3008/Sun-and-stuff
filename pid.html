@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>PID</title>
+        <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow: hidden; background:#112;}
+            canvas.vessel {
+            	width: 100%; 
+            	height: 100%;
+            }
+            .soundSwitch {
+            	position: absolute;
+            	top: 12px;
+            	right: 8px;
+            	color: #FFF2;
+            	font: 14px monospace;
+            }
+            .soundSwitch:hover{
+            	color: #FFF;
+            	cursor: pointer;
+            }
+            .lineContainer{
+            	position: absolute;
+            	bottom:0;
+            	left:0;
+            	width:100%;
+            	height:64px;
+            	display: flex;
+            	align-items: center;
+            	justify-content: center;
+            	font: 14px monospace;
+            }
+            .lineContainer .lineToggle{
+            	color: #FFF2;
+            	padding: 14px;
+            }
+            .lineContainer .lineToggle span{
+            	opacity: 0
+            }
+            .lineContainer .lineToggle:hover{
+            	color: #FFF;
+            	cursor: pointer;
+            }
+            .lineContainer .lineToggle.active{
+            	color: #FFF6;
+            }
+             .lineContainer .lineToggle.active span{
+            	opacity: 1
+            }
+        </style>
+</head>
+<body>
+<canvas class="vessel" ></canvas>
+<div class="soundSwitch">Make some noise!</div>
+<div class="lineContainer"></div>
+<script type="text/javascript">
+
+class Core {
+
+	constructor(canvas) {
+
+		this.canvas = canvas
+        this.ratio = window.devicePixelRatio || 1
+        this.canvas.width = this.w = this.canvas.clientWidth * this.ratio
+        this.canvas.height = this.h = this.canvas.clientHeight * this.ratio
+        this.ctx = this.canvas.getContext('2d')
+
+        this.graph = document.createElement(`canvas`)
+		this.graph.width = this.w
+		this.graph.height = this.h * .5
+		this.gctx = this.graph.getContext(`2d`)
+		this.graph2 = document.createElement(`canvas`)
+		this.graph2.width = this.graph.width
+		this.graph2.height = this.graph.height
+		this.gctx2 = this.graph2.getContext(`2d`)
+
+		this.buffer = false
+		this.gc = {}
+		this.timeStamp = 0
+		this.shiftSpeed = 1
+		this.timescale = 1
+
+        this.radius = this.h * .4
+
+        this.unit = {
+        	rate: 5,
+        	static: 1e-5,
+        	target: .1,
+        	trueTarget: .1,
+        	noise: .01,
+        	angle: -.3,
+        	dif: 0,
+        	int: 0,
+        	difChange: 0,
+        	avel: 0,
+        	force: 0,
+        	maxForce: .0001,
+        	friction: .001,
+        	pid: {
+        		p: 0,
+        		i: 0,
+        		d: 0
+        	}
+        }
+
+        this.controls = {
+        	p: new VerticalSlider({
+        		x: this.ratio * 32,
+        		y: this.ratio * 256,
+        		w: this.ratio * 24,
+        		h: this.ratio * 600,
+        		v: 0,
+        		canvas: this.canvas,
+        		ctx: this.ctx,
+        		ratio: this.ratio,
+        		action: v=>{this.unit.pid.p = v * 50},
+        		fill: `#FA8065`,
+        		blobLabel: `P`
+        	}),
+        	i: new VerticalSlider({
+        		x: this.ratio * 64,
+        		y: this.ratio * 256,
+        		w: this.ratio * 24,
+        		h: this.ratio * 600,
+        		v: 0,
+        		canvas: this.canvas,
+        		ctx: this.ctx,
+        		ratio: this.ratio,
+        		action: v=>{this.unit.pid.i = v * 50},
+        		fill: `#ADDC88`,
+        		blobLabel: `I`
+        	}),
+        	d: new VerticalSlider({
+        		x: this.ratio * 96,
+        		y: this.ratio * 256,
+        		w: this.ratio * 24,
+        		h: this.ratio * 600,
+        		v: 0,
+        		canvas: this.canvas,
+        		ctx: this.ctx,
+        		ratio: this.ratio,
+        		action: v=>{this.unit.pid.d = v * 50},
+        		fill: `#829AF0`,
+        		blobLabel: `D`
+        	})
+        }
+
+        this.lines = {
+        	power: {
+        		color: `#269`,
+        		value: `force`,
+        		math: v=>v/this.unit.maxForce,
+        		active: true
+        	},
+        	error: {
+        		color: `#ff8`,
+        		value: `dif`,
+        		math: v=>v,
+        		active: true
+        	},
+        	target: {
+        		color: `#f62`,
+        		value: `target`,
+        		math: v=>v/Math.PI,
+        		active: false
+        	},
+        	angle: {
+        		color: `#fff`,
+        		value: `angle`,
+        		math: v=>v/Math.PI,
+        		active: false
+        	},
+        	p: {
+        		color: `#FA8065`,
+        		value: `dif`,
+        		math: v=>v*this.unit.pid.p,
+        		active: false
+        	},
+        	i: {
+        		color: `#ADDC88`,
+        		value: `int`,
+        		math: v=>v*this.unit.pid.i*.03,
+        		active: false
+        	},
+        	d: {
+        		color: `#829AF0`,
+        		value: `difChange`,
+        		math: v=>v*this.unit.pid.d*10,
+        		active: false
+        	}
+        }
+
+        this.fontSize = 14 * this.ratio
+        this.ctx.font = this.fontSize + `px monospace`
+        this.gctx.lineWidth = this.ratio
+
+        this.generateStatic()
+        this.cycle()
+        this.render()
+
+        window.addEventListener(`keydown`, e=>{
+        	this.unit.trueTarget = (Math.random() - .5) * Math.PI * 2
+        })
+
+        // this.canvas.addEventListener(`click`, _=>{
+        // 	this.makeNoise()
+        // })
+        
+
+	}
+
+	plot(l){
+		this.gctx.strokeStyle = l.color
+		this.gctx.beginPath()
+		this.gctx.moveTo(-this.ratio, this.graph.height * .5 * l.math(this.gc[l.value]))
+		this.gctx.lineTo(0, this.graph.height * .5 * l.math(this.unit[l.value]))
+		this.gctx.stroke()
+		// this.gc[l.value] = this.unit[l.value]
+	}
+
+	updateGC(){
+		for(let i in this.lines){
+			this.gc[this.lines[i].value] = this.unit[this.lines[i].value]
+		}
+	}
+
+	makeNoise(){
+		if (!this.actx){
+	    	this.actx = new (window.AudioContext || window.webkitAudioContext)()
+			this.rotateFx = new RotateFx({
+				actx: this.actx
+			})
+			this.rotateFx.play()
+		}
+	}
+	silence(){
+		this.rotateFx.stop()
+		this.rotateFx = false
+		this.actx.close()
+		this.actx = false
+	}
+
+	generateStatic(){
+		this.static = document.createElement(`canvas`)
+		this.static.width = this.w
+		this.static.height = this.h
+		this.sctx = this.static.getContext(`2d`)
+
+		this.sctx.save()
+		this.sctx.translate(this.w / 2, this.h / 2)
+
+		//Dial
+		this.sctx.strokeStyle = `#fff`
+
+		//Marks
+		this.sctx.lineWidth = this.ratio
+		for (let i = 0; i < 360; i++){
+			this.sctx.save()
+			this.sctx.rotate(i / 180 * Math.PI)
+			this.sctx.translate(this.radius * .99, 0)
+			this.sctx.beginPath()
+			this.sctx.moveTo(0, 0)
+			this.sctx.lineTo(-this.ratio * 10, 0)
+			this.sctx.stroke()
+			this.sctx.restore()
+		}
+
+		this.sctx.restore()
+
+
+	}
+
+	cycle(){
+		this.update()
+		setTimeout(this.cycle.bind(this), this.unit.rate)
+	}
+
+	render(){
+		requestAnimationFrame(this.render.bind(this))
+		this.draw()
+	}
+
+	update(){
+
+		const now = performance.now()
+		this.dt = (now - this.timeStamp) * this.timescale
+		this.timeStamp = now
+
+		if (this.dt < 10 * this.timescale){
+
+			// Target rotate
+			// this.unit.target = (Math.sin(performance.now() / 3000) + .3 * Math.sin(performance.now() / 717 + 137) + .08 * Math.sin(performance.now() / 97 + 28)) * Math.PI
+			// this.unit.trueTarget = Math.floor(Math.sin(performance.now() / 4000) * 4.5) / 4 * Math.PI
+			
+			// Target shift
+			if (this.unit.trueTarget !== this.unit.target){
+				let delta = this.unit.trueTarget - this.unit.target
+				this.unit.target += delta * this.dt * .01
+				if (Math.abs(delta) < 1e-3) this.unit.target = this.unit.trueTarget
+			}
+
+
+			this.updateUnitData()
+			this.applyPower(this.getPIDPower())
+
+			//Update
+			this.unit.avel += this.unit.force * this.dt
+			this.unit.angle += this.unit.avel * this.dt
+			this.unit.avel -= this.unit.avel * this.unit.friction * this.dt
+
+			//Static
+			let staticForce = Math.cos(this.unit.angle)//1//Math.PI / 2 - this.unit.angle
+			this.unit.avel += staticForce * this.unit.static * this.dt
+
+		}
+
+		//Sound
+		if (this.rotateFx) this.rotateFx.update(Math.abs(this.unit.force / this.unit.maxForce))
+
+
+
+	}
+
+	updateUnitData(){
+		let dif = (this.unit.target - this.unit.angle) / Math.PI
+		this.unit.difChange = (dif - this.unit.dif) / this.dt
+		this.unit.int += dif * this.dt
+		this.unit.dif = dif
+		if (Math.abs(dif) > .04) {
+			this.unit.int = 0
+		}
+	}
+
+	getPIDPower(){
+		let p = this.unit.dif * this.unit.maxForce * this.unit.pid.p
+		p += this.unit.int * this.unit.pid.i * 1e-6
+		p += this.unit.difChange * this.unit.pid.d * 1e-2
+
+		return p
+	}
+
+	applyPower(p){
+		if (p < -this.unit.maxForce) p = -this.unit.maxForce
+		if (p > this.unit.maxForce) p = this.unit.maxForce
+		
+		this.unit.force = p
+	}
+
+	draw(){
+
+		this.ctx.clearRect(0, 0, this.w, this.h)
+		this.ctx.drawImage(this.static, 0, 0)
+
+		//Graph
+		this.drawGraph()
+
+		this.ctx.save()
+		this.ctx.translate(this.w / 2, this.h / 2)
+
+		//Target
+		this.ctx.save()
+		this.ctx.rotate(this.unit.target)
+		this.ctx.translate(this.radius, 0)
+		this.ctx.strokeStyle = `#f62`
+		this.ctx.lineWidth = this.ratio * 4
+		this.ctx.beginPath()
+		this.ctx.moveTo(0, 0)
+		this.ctx.lineTo(this.ratio * 16, 0)
+		this.ctx.stroke()
+		this.ctx.restore()
+
+		//Center
+		this.ctx.strokeStyle = `#fff`
+		this.ctx.lineWidth = this.ratio * 4
+		this.ctx.beginPath()
+		this.ctx.arc(0, 0, this.ratio * 6, 0, Math.PI * 2)
+		this.ctx.closePath()
+		this.ctx.stroke()
+
+		//Arrow
+		this.ctx.save()
+		this.ctx.lineWidth = this.ratio * 2
+		this.ctx.rotate(this.unit.angle)
+		this.ctx.beginPath()
+		this.ctx.moveTo(this.ratio * 8, 0)
+		this.ctx.lineTo(this.radius * .95, 0)
+		this.ctx.stroke()
+		this.ctx.beginPath()
+		this.ctx.moveTo(-this.ratio * 8, 0)
+		this.ctx.lineTo(-this.radius * .1, 0)
+		this.ctx.stroke()
+		this.ctx.restore()
+
+		this.ctx.restore()
+
+
+		//Stats
+		this.ctx.save()
+		this.ctx.translate(this.fontSize, 0)
+		this.ctx.fillStyle = `#fff`
+		// this.ctx.fillText(`Angle: ` + Math.floor(this.unit.angle * 1000) / 1000, 0, this.fontSize)
+		this.ctx.fillText(`Error: ` + Math.floor((this.unit.target - this.unit.angle) * 1000) / 1000, 0, this.fontSize * 2)
+		this.ctx.fillText(`Power: ` + Math.floor(this.unit.force / this.unit.maxForce * 1000) / 1000, 0, this.fontSize * 3)
+
+		this.ctx.fillText(`p: (${Math.floor(this.unit.pid.p * 100) / 100}) ${Math.floor(this.unit.dif * 100 * 1000) / 1000}`, 0, this.fontSize * 5)
+		this.ctx.fillText(`i: (${Math.floor(this.unit.pid.i * 100) / 100}) ${Math.floor(this.unit.int * 100 * 1000) / 1000}`, 0, this.fontSize * 6)
+		this.ctx.fillText(`d: (${Math.floor(this.unit.pid.d * 100) / 100}) ${Math.floor(this.unit.difChange * 100 * 1000) / 1000}`, 0, this.fontSize * 7)
+		this.ctx.fillText(`Rate: ` + Math.floor(1000 / this.dt) + `Hz`, 0, this.fontSize * 8)
+
+		this.ctx.fillText(`Press any key`, 0, this.fontSize * 10)
+		this.ctx.restore()
+
+		//Controls
+		for (let i in this.controls){
+			this.controls[i].draw()
+		}
+
+	}
+
+	drawGraph(){
+
+		this.gctx2.clearRect(0, 0, this.graph.width, this.graph.height)
+		this.gctx2.drawImage(this.graph, -this.ratio, 0)
+		this.gctx.clearRect(0, 0, this.graph.width, this.graph.height)
+		this.gctx.drawImage(this.graph2, 0, 0)
+
+		this.gctx.save()
+		this.gctx.translate(this.graph.width - this.ratio, this.graph.height * .5)
+
+		//Axis
+		this.gctx.strokeStyle = `#fff6`
+		this.gctx.beginPath()
+		this.gctx.moveTo(-this.ratio, 0)
+		this.gctx.lineTo(0,0)
+		this.gctx.stroke()
+
+		for (let i in this.lines){
+			if (this.lines[i].active) this.plot(this.lines[i])
+		}
+		this.updateGC()
+
+		this.gctx.restore()
+
+		this.ctx.drawImage(this.graph, 0, this.h - this.graph.height)
+
+	}
+}
+
+class VerticalSlider{
+
+	constructor(a){
+		this.ctx = a.ctx
+		this.fill = a.fill || `#fff3`
+		this.blobLabel = a.blobLabel || false
+		this.x = a.x || 0
+		this.y = a.y || 0
+		this.w = a.w || 100
+		this.h = a.h || 200
+		this.v = a.v || 0
+		this.mousedown = false
+
+		a.canvas.addEventListener(`mousedown`, e=>{
+        	const x = e.offsetX * a.ratio
+        	const y = e.offsetY * a.ratio
+        	if (x > this.x && x < this.x + this.w && y > this.y && y < this.y + this.h){
+        		this.mousedown = true
+        		this.v = Math.max(Math.min(1 - (y - this.y - this.w / 2) / (this.h - this.w), 1), 0)
+        		a.action(this.v)
+        	}
+        })
+
+        a.canvas.addEventListener(`mouseup`, e=>{
+        	this.mousedown = false
+        })
+
+        a.canvas.addEventListener(`mousemove`, e=>{
+        	if (this.mousedown){
+	        	const y = e.offsetY * a.ratio
+	        	this.v = Math.max(Math.min(1 - (y - this.y - this.w / 2) / (this.h - this.w), 1), 0)
+	        	a.action(this.v)
+	        	
+        	}
+        })
+	}
+
+	draw(){
+		this.ctx.save()
+		this.ctx.translate(this.x + this.w * .5, this.y)
+		
+		this.ctx.lineWidth = this.w / 2
+		this.ctx.lineCap = `round`
+
+		this.ctx.strokeStyle = `#FFF2`
+		this.ctx.beginPath()
+		this.ctx.moveTo(0, this.w * .5)
+		this.ctx.lineTo(0, this.h - this.w * .5)
+		this.ctx.stroke()
+
+		const vh = this.h - this.w / 2 - this.v * (this.h - this.w)
+
+		this.ctx.strokeStyle = this.fill
+		this.ctx.beginPath()
+		this.ctx.moveTo(0, vh)
+		this.ctx.lineTo(0, this.h - this.w * .5)
+		this.ctx.stroke()
+
+		this.ctx.fillStyle = `#fff`
+		this.ctx.beginPath()
+		this.ctx.arc(0, vh, this.w * .5, 0, Math.PI * 2)
+		this.ctx.closePath()
+		this.ctx.fill()
+
+		if (this.blobLabel){
+			this.ctx.textAlign = `center`
+			this.ctx.textBaseline = `middle`
+			this.ctx.fillStyle = `#000`
+			this.ctx.font = this.w * .6 + `px monospace`
+			this.ctx.fillText(this.blobLabel, 0, vh)
+		}
+
+		this.ctx.restore()
+	}
+
+}
+
+class RotateFx{
+
+	constructor(a){
+
+		this.baseF = 300
+
+		this.ctx = a.actx
+		window.onblur = ()=>{this.stop()}
+		window.onfocus = ()=>{this.play()}
+
+		this.gain = this.ctx.createGain()
+
+		this.sin = this.ctx.createOscillator()
+		this.sin.type = `triangle`
+		this.sin.connect(this.gain)
+
+		this.sin2 = this.ctx.createOscillator()
+		this.sin2.type = `sine`
+		this.sin2.connect(this.gain)
+
+		this.saws = []
+		this.sawGain = this.ctx.createGain()
+		this.sawGain.gain.value = 0
+		this.sawGain.connect(this.gain)
+		for (let i = 0; i < 6; i++){
+			const s = this.ctx.createOscillator()
+			s.type = `sawtooth`
+			s.connect(this.sawGain)
+			s.frequency.value = 100 + i * 19.323
+			s.start(this.ctx.currentTime)
+			this.saws.push(s)
+		}
+
+		this.gain.connect(this.ctx.destination)
+
+		this.gain.gain.value = 0
+
+		this.sin.frequency.value = this.baseF
+		this.sin2.frequency.value = this.baseF * 2
+
+		// this.sin.start(this.ctx.currentTime)
+		// this.sin2.start(this.ctx.currentTime)
+	}
+
+	stop(){
+		this.gain.gain.exponentialRampToValueAtTime(.001, this.ctx.currentTime + .3)
+		// this.sin.stop(this.ctx.currentTime + .3)
+	}
+
+	play(){
+		this.gain.gain.exponentialRampToValueAtTime(.1, this.ctx.currentTime + .3)
+		// if (!this.ctx.) this.sin.start(this.ctx.currentTime)
+	}
+
+	update(v){
+		v = Math.max(Math.min(v, 1), 0)
+		this.sin.frequency.value = this.baseF + v * this.baseF
+		this.sin2.frequency.value = this.baseF * 1.125 + v * this.baseF * 1.125
+		for (let i = 0; i < this.saws.length; i++){
+			this.saws[i].frequency.value = 100 + i * 19.323 + v * (97 + i * 379)
+			this.sawGain.gain.value = v ** .5 * .5
+		}
+	}
+
+}
+
+let core = new Core(document.querySelector(`.vessel`))
+const ss = document.querySelector(`.soundSwitch`)
+ss.addEventListener(`click`, _=>{
+	if (!core.actx){
+		core.makeNoise()
+		ss.innerText = `Silence!`
+	} else {
+		core.silence()
+		ss.innerText = `Make some noise!`
+	}
+})
+
+const lc = document.querySelector(`.lineContainer`)
+for (let i in core.lines){
+	const el = document.createElement(`div`)
+	el.classList.add('lineToggle')
+	if (core.lines[i].active) el.classList.add(`active`)
+	el.innerHTML = `<span style="color: ${core.lines[i].color}">·</span> ` + i
+	lc.appendChild(el)
+	el.addEventListener(`click`, _=>{
+		core.lines[i].active = !core.lines[i].active
+		if (core.lines[i].active){
+			el.classList.add(`active`)
+		} else {
+			el.classList.remove(`active`)
+		}
+	})
+}
+
+
+</script>
+</body>
+</html>

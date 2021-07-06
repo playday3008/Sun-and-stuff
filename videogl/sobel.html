@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>WebGL</title>
+        <link rel="shortcut icon" href="../favicon.ico" type="image/x-icon">
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow-y: hidden; background: #000;}
+            .vessel {
+            	width: 100%;
+            	height: 100%;
+            }
+            .fps {
+            	font: 12px/12px 'TT Norms';
+            	color: #fff;
+            	position: absolute;
+            	top: 5px;
+            	right: 5px;
+            }
+        </style>
+</head>
+<body>
+
+	<canvas class="vessel"></canvas>
+	<div class="fps">123</div>
+	<video class="video" loop></video>
+
+<script class="vsh" type="x-shader/x-fragment">#version 300 es 
+	
+	in vec2 a_position;
+
+	void main(){
+		gl_Position = vec4(a_position, 0.0, 1.0);
+	}
+
+</script>
+<script class="fsh" type="x-shader/x-fragment">#version 300 es
+
+	precision highp float;
+	uniform sampler2D u_image;
+	uniform vec2 u_size;
+	uniform float u_time;
+	uniform vec2 u_imgSize;
+	out vec4 pixelColor;
+
+	vec4 sobel(in vec2 tc){
+
+		float str = 0.5;
+
+		vec2 pix = str / u_imgSize.xy;
+
+	    float	sx = texture(u_image, tc + vec2(pix.x, 0.0), str).r * 2.0;
+	    		sx += texture(u_image, tc + vec2(-pix.x, 0.0), str).r * -2.0;
+	    		sx += texture(u_image, tc + vec2(pix.x, pix.y), str).r;
+	    		sx += texture(u_image, tc + vec2(-pix.x, pix.y), str).r * -1.0;
+	    		sx += texture(u_image, tc + vec2(pix.x, -pix.y), str).r;
+	    		sx += texture(u_image, tc + vec2(-pix.x, -pix.y), str).r * -1.0;
+
+	    float	sy = texture(u_image, tc + vec2(0.0, pix.y), str).r * 2.0;
+	    		sy += texture(u_image, tc + vec2(0.0, -pix.y), str).r * -2.0;
+	    		sy += texture(u_image, tc + vec2(pix.x, pix.y), str).r;
+	    		sy += texture(u_image, tc + vec2(-pix.x, pix.y), str).r;
+	    		sy += texture(u_image, tc + vec2(pix.x, -pix.y), str).r * -1.0;
+	    		sy += texture(u_image, tc + vec2(-pix.x, -pix.y), str).r * -1.0;
+
+	    //float xv = length(sx);
+	    //float yv = length(sy);
+	    float sq = sqrt(sx * sx + sy * sy);
+	    float an = atan(sy, sx) / 3.14;
+	    vec4 color = vec4(abs(an), -abs(an - 0.3) + 1.0, -abs(an + 0.3) + 1.0, 1.0);
+	    color *= sq;
+	    return color;
+
+	}
+
+	void main(void){
+
+		vec2 tc = vec2(1.0) - gl_FragCoord.xy / u_imgSize * (u_imgSize.x / u_size.x);
+		//tc.y = 1.0 - tc.y;
+		float pixel = 1.0 / u_imgSize.x;
+
+		//vec4 original = texture(u_image, tc).rgba;
+		vec4 color = sobel(tc);
+
+		pixelColor = vec4(color);
+	}
+
+</script>
+
+<script type="text/javascript">
+
+	class Engine {
+
+		constructor(canvas, vshader, fshader, v){
+
+			this.vshaderSource = vshader;
+			this.fshaderSource = fshader;
+			this.v = v;
+
+			this.ratio = window.devicePixelRatio || 1;
+			this.canvas = canvas;
+			this.canvas.width = canvas.clientWidth * this.ratio;
+			this.canvas.height = canvas.clientHeight * this.ratio;
+			this.gl = this.canvas.getContext('webgl2');
+
+			if (this.gl){
+				this.init()
+				// this.initGL();
+				// this.render();
+			} else {
+				throw new Error('Consider more high-tech browser. No show for you for now.');
+			}
+
+		}
+
+		init(){
+
+			if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+			    navigator.mediaDevices.getUserMedia({ video: { deviceId: `3695d50ed48e3d3a0a1532770e1e81dbf01fad29f2e177482cc807f9820f9563` } }).then(function(stream) {
+			        this.v.srcObject = stream;
+			        this.v.play();
+			        this.v.onloadeddata = _=>{
+			        	// this.canvas.width = this.v.videoWidth;
+			        	// this.canvas.height = this.v.videoHeight;
+			        	// this.vctx = this.vCanvas.getContext('2d');
+			        	// this.run();
+			        	this.initGL()
+			        	this.render()
+			        }
+			        
+			    }.bind(this));
+			}
+
+			// this.img = new Image()
+			// this.img.src = l
+			// this.img.onload = _=>{
+			// 	this.initGL()
+			// 	this.render()
+			// }
+
+		}
+
+		initGL(){
+
+			//Vertex Shader
+			this.vshader = this.gl.createShader(this.gl.VERTEX_SHADER);
+			this.gl.shaderSource(this.vshader, this.vshaderSource);
+			this.gl.compileShader(this.vshader);
+			if (!this.gl.getShaderParameter(this.vshader, this.gl.COMPILE_STATUS)) throw new Error(this.gl.getShaderInfoLog(this.vshader));
+
+			//Fragment Shader
+			this.fshader = this.gl.createShader(this.gl.FRAGMENT_SHADER);
+			this.gl.shaderSource(this.fshader, this.fshaderSource);
+			this.gl.compileShader(this.fshader);
+			if (!this.gl.getShaderParameter(this.fshader, this.gl.COMPILE_STATUS)) throw new Error(this.gl.getShaderInfoLog(this.fshader));
+
+			//Program
+			this.program = this.gl.createProgram();
+			this.gl.attachShader(this.program, this.vshader);
+			this.gl.attachShader(this.program, this.fshader);
+			this.gl.linkProgram(this.program);
+			if (this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS)){
+				this.gl.useProgram(this.program);
+			} else {
+				throw new Error(this.gl.getProgramInfoLog(this.program));
+			}
+
+			//Geometry
+			this.vertices = [-1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0];
+			this.vbuffer = this.gl.createBuffer();
+			this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vbuffer);
+			this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(this.vertices), this.gl.STATIC_DRAW);
+
+			//Vertex shader a_position
+			this.va = this.gl.createVertexArray();
+			this.gl.bindVertexArray(this.va);
+			this.gl.enableVertexAttribArray(this.va);
+			this.gl.vertexAttribPointer(this.va, 2, this.gl.FLOAT, false, 0, 0);
+
+			//Textures
+			this.texture = this.gl.createTexture();
+			this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
+			this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.v);
+			this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+			this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+			this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR_MIPMAP_LINEAR);
+			this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+			this.updateTexture();
+			
+			this.uniforms = {}
+
+			//Size
+			this.uniforms.size = this.gl.getUniformLocation(this.program, 'u_size');
+			this.uniforms.imgSize = this.gl.getUniformLocation(this.program, 'u_imgSize');
+			this.gl.uniform2fv(this.uniforms.size, [this.canvas.width, this.canvas.height]);
+			this.gl.uniform2fv(this.uniforms.imgSize, [this.v.videoWidth, this.v.videoHeight]);
+			this.uniforms.time = this.gl.getUniformLocation(this.program, 'u_time');
+
+		}
+
+		updateTexture(){
+			this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
+			this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.v);
+			this.gl.generateMipmap(this.gl.TEXTURE_2D);
+		}
+
+		render(){
+			requestAnimationFrame(this.render.bind(this))
+			this.updateTexture()
+			this.gl.uniform1f(this.uniforms.time, performance.now() / 1000);
+			this.gl.drawArrays(this.gl.TRIANGLE_FAN, 0, 4);
+		}
+
+	}
+
+	let engine = new Engine(document.querySelector('.vessel'), document.querySelector('.vsh').textContent, document.querySelector('.fsh').textContent, document.querySelector('.video'));
+	
+	
+</script>
+</body>
+</html>

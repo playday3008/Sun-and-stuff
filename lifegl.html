@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8" />
+        <title>LifeGL</title>
+        <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+        <style>
+            body, html {margin:0; width: 100%; height: 100%; min-height: 400px; min-width: 600px; overflow-y: hidden; background: #000;}
+
+            @keyframes zoom {
+            	0% {transform: scale(20)}
+            	/*30% {transform: scale(1)}
+            	70% {transform: scale(1)}*/
+            	100% {transform: scale(1)}
+            }
+            .vessel {
+            	width: 100%;
+            	height: 100%;
+            	-ms-interpolation-mode: nearest-neighbor;
+            	image-rendering: pixelated;
+            	/*animation: zoom 30s ease;*/
+            }
+            .fps {
+            	font: 12px/12px 'TT Norms';
+            	color: #fff;
+            	position: absolute;
+            	top: 5px;
+            	right: 5px;
+            }
+        </style>
+</head>
+<body>
+
+	<canvas class="vessel"></canvas>
+
+<script class="vsh" type="x-shader/x-fragment">#version 300 es 
+	
+	in vec2 a_position;
+
+	void main(){
+		gl_Position = vec4(a_position, 0.0, 1.0);
+	}
+
+</script>
+<script class="fsh" type="x-shader/x-fragment">#version 300 es
+
+	precision highp float;
+	uniform sampler2D u_image;
+	uniform vec2 u_size;
+	uniform vec3 u_mouse;
+	uniform float u_time;
+	out vec4 pixelColor;
+
+	bool hash11(float p)
+	{
+	    p = fract(p * .1031);
+	    p *= p + 33.33;
+	    p *= p + p;
+	    if (fract(p) > 0.9) {
+	    	return true;
+		} else {
+			return false;
+		}
+	    //return fract(p);
+	}
+
+	void main(void){
+
+		vec2 uv = gl_FragCoord.xy / u_size;
+		vec2 d = vec2(1.) / u_size;
+
+		float state = texture(u_image, uv).r;
+		float fresh = texture(u_image, uv).g;
+
+		float n = 0.0;
+		n += texture(u_image, vec2(uv.x - d.x, uv.y - d.y)).r;
+		n += texture(u_image, vec2(uv.x - d.x, uv.y)).r;
+		n += texture(u_image, vec2(uv.x - d.x, uv.y + d.y)).r;
+		n += texture(u_image, vec2(uv.x, uv.y - d.y)).r;
+		n += texture(u_image, vec2(uv.x, uv.y + d.y)).r;
+		n += texture(u_image, vec2(uv.x + d.x, uv.y - d.y)).r;
+		n += texture(u_image, vec2(uv.x + d.x, uv.y)).r;
+		n += texture(u_image, vec2(uv.x + d.x, uv.y + d.y)).r;
+
+		fresh = max(0.0, fresh - 0.002);
+
+		if (state == 1.){
+			if (n > 3. || n < 2.){
+				state = 0.;
+			} else {
+				state = 1.;
+			}
+		} else {
+			if (n != 3.){
+				state = 0.;
+			} else {
+				state = 1.;
+				fresh = 1.;
+			}
+		}
+
+
+		if (u_mouse.z != 0. && hash11(gl_FragCoord.x * (93.16 + gl_FragCoord.y) + u_time)){
+
+			float dst = length((uv.xy - vec2(u_mouse.x, 1. - u_mouse.y)) * vec2(1., u_size.y / u_size.x));
+			if (dst < .02){
+				state = 1.;
+				fresh = 1.;
+			}
+
+		}
+
+		pixelColor = vec4(state, fresh, 0.0, 1.0);
+	}
+
+</script>
+<script class="ssh" type="x-shader/x-fragment">#version 300 es
+
+	precision highp float;
+	uniform sampler2D u_image;
+	uniform vec2 u_size;
+	out vec4 pixelColor;
+
+	vec3 getFire(in float f){
+
+		vec3 c1 = vec3(0.171875, 0.171875, 0.1796875);
+		vec3 c2 = vec3(0.40234375, 0.1875, 0.16796875);
+		vec3 c3 = vec3(0.77734375, 0.29296875, 0.19921875);
+		vec3 c4 = vec3(0.97265625, 0.61328125, 0.3125);
+		vec3 c5 = vec3(0.96484375, 0.9609375, 0.63671875);
+
+		if (f < .25){
+			return mix(c1,c2,f * 4.);
+		} else if (f < .5){
+			return mix(c2,c3, (f - .25) * 4.);
+		} else if (f < .75){
+			return mix(c3,c4, (f - .5) * 4.);
+		} else if (f < 1.){
+			return mix(c4,c5, (f - .75) * 4.);
+		}
+
+		return mix(c4,c5,f);
+
+	}
+
+	void main(void){
+		vec2 v = texture(u_image, gl_FragCoord.xy / u_size).rg;
+		vec3 color = getFire(v.g);
+		color *= v.r;
+		color.b = max(color.b, v.g * .4);
+		color.r = max(color.r, v.g * .2);
+
+		//vec3 color = texture(u_image, gl_FragCoord.xy / u_size).rgb;
+
+		pixelColor = vec4(color, 1.);
+	}
+
+</script>
+
+<script type="text/javascript">
+
+	class Engine {
+
+		constructor(canvas, vshader, fshader, sshader){
+
+			this.vshaderSource = vshader;
+			this.fshaderSource = fshader;
+			this.sshaderSource = sshader;
+
+			this.ratio = window.devicePixelRatio || 1;
+			this.canvas = canvas;
+			this.seed = document.createElement(`canvas`)
+			this.canvas.width = this.seed.width = canvas.clientWidth * this.ratio;
+			this.canvas.height = this.seed.height = canvas.clientHeight * this.ratio;
+			this.gl = this.canvas.getContext(`webgl2`);
+			this.ctx = this.seed.getContext(`2d`);
+
+			this.mouse = {u: 0, v: 0, active: 0}
+
+			this.frameSkip = 0
+			this.frameId = this.frameSkip
+
+			// this.putNoise()
+			this.generateObject()
+
+			this.getPixelsFromArrayBuffer = _=>{
+				let a = new Uint8Array(this.canvas.width * this.canvas.height * 4)
+				this.gl.readPixels(0, 0, this.canvas.width, this.canvas.height, this.gl.RGBA, this.gl.UNSIGNED_BYTE, a)
+				console.log(a)
+			}
+
+			if (this.gl){
+				this.getMouse()
+				this.initGL()
+				this.render()
+			} else {
+				throw new Error('Consider more high-tech browser. No show for you for now.');
+			}
+
+		}
+
+		getMouse(){
+
+			this.canvas.addEventListener('mousemove', e=>{
+				this.mouse.u = e.clientX / this.canvas.width * this.ratio
+				this.mouse.v = e.clientY / this.canvas.height * this.ratio
+			})
+
+			this.canvas.addEventListener('mousedown', e=>{
+				this.mouse.active = 1
+			})
+
+			this.canvas.addEventListener('mouseup', e=>{
+				this.mouse.active = 0
+			})
+
+		}
+
+		putNoise(){
+
+			let c = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height)
+			for (let i = 0; i < c.data.length; i+=4){
+				let v = Math.random() > .5 ? 255 : 0
+				c.data[i] = v
+				c.data[i + 1] = 255
+				c.data[i + 2] = 0
+				c.data[i + 3] = 255
+			}
+			this.ctx.putImageData(c, 0, 0)
+
+		}
+
+		initGL(){
+
+			//Vertex Shader
+			this.vshader = this.gl.createShader(this.gl.VERTEX_SHADER);
+			this.gl.shaderSource(this.vshader, this.vshaderSource);
+			this.gl.compileShader(this.vshader);
+			if (!this.gl.getShaderParameter(this.vshader, this.gl.COMPILE_STATUS)) throw new Error(this.gl.getShaderInfoLog(this.vshader));
+
+			//Fragment Shader
+			this.fshader = this.gl.createShader(this.gl.FRAGMENT_SHADER);
+			this.gl.shaderSource(this.fshader, this.fshaderSource);
+			this.gl.compileShader(this.fshader);
+			if (!this.gl.getShaderParameter(this.fshader, this.gl.COMPILE_STATUS)) throw new Error(this.gl.getShaderInfoLog(this.fshader));
+
+			//Screen Shader
+			this.sshader = this.gl.createShader(this.gl.FRAGMENT_SHADER);
+			this.gl.shaderSource(this.sshader, this.sshaderSource);
+			this.gl.compileShader(this.sshader);
+			if (!this.gl.getShaderParameter(this.sshader, this.gl.COMPILE_STATUS)) throw new Error(this.gl.getShaderInfoLog(this.sshader));
+
+			//Program
+			this.program = this.gl.createProgram();
+			this.gl.attachShader(this.program, this.vshader);
+			this.gl.attachShader(this.program, this.fshader);
+			this.gl.linkProgram(this.program);
+			if (this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS)){
+				this.gl.useProgram(this.program);
+
+				this.uniforms = {}
+
+				this.uniforms.size = this.gl.getUniformLocation(this.program, 'u_size');
+				this.gl.uniform2fv(this.uniforms.size, [this.canvas.width, this.canvas.height]);
+				this.uniforms.time = this.gl.getUniformLocation(this.program, 'u_time');
+				this.uniforms.mouse = this.gl.getUniformLocation(this.program, 'u_mouse');
+
+			} else {
+				throw new Error(this.gl.getProgramInfoLog(this.program));
+			}
+
+			//Screen program
+			this.outprogram = this.gl.createProgram();
+			this.gl.attachShader(this.outprogram, this.vshader);
+			this.gl.attachShader(this.outprogram, this.sshader);
+			this.gl.linkProgram(this.outprogram);
+			if (this.gl.getProgramParameter(this.outprogram, this.gl.LINK_STATUS)){
+				this.gl.useProgram(this.outprogram);
+				let csize = this.gl.getUniformLocation(this.outprogram, 'u_size');
+				this.gl.uniform2fv(csize, [this.canvas.width, this.canvas.height]);
+			} else	{
+				throw new Error(this.gl.getProgramInfoLog(this.outprogram));
+			}
+
+			//Geometry
+			this.vertices = [-1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0];
+			this.vbuffer = this.gl.createBuffer();
+			this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vbuffer);
+			this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(this.vertices), this.gl.STATIC_DRAW);
+
+			//Vertex shader a_position
+			this.va = this.gl.createVertexArray();
+			this.gl.bindVertexArray(this.va);
+			this.gl.enableVertexAttribArray(this.va);
+			this.gl.vertexAttribPointer(this.va, 2, this.gl.FLOAT, false, 0, 0);
+
+			//Front seeded
+			this.front = this.gl.createTexture();
+			this.gl.bindTexture(this.gl.TEXTURE_2D, this.front);
+			this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.canvas.width, this.canvas.height, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.seed);
+			this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.REPEAT);
+			this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.REPEAT);
+			this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
+			this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
+			this.fbf = this.gl.createFramebuffer();
+			this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.fbf);
+			this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, this.front, 0);
+			this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+
+			//Back
+			this.back = this.gl.createTexture();
+			this.gl.bindTexture(this.gl.TEXTURE_2D, this.back);
+			this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.canvas.width, this.canvas.height, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null);
+			this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.REPEAT);
+			this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.REPEAT);
+			this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
+			this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
+			this.fbb = this.gl.createFramebuffer();
+			this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.fbb);
+			this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, this.back, 0);
+			this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+			this.switch = true
+
+
+		}
+
+		flip(){
+
+			this.gl.bindTexture(this.gl.TEXTURE_2D, this.switch ? this.front : this.back)
+			this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.switch ? this.fbb : this.fbf)
+			this.switch = !this.switch
+
+		}
+
+		render(){
+			requestAnimationFrame(this.render.bind(this))
+
+			if (this.frameId > 0){
+
+				this.frameId--
+
+			} else {
+
+				this.frameId = this.frameSkip
+
+				this.flip()
+				this.gl.useProgram(this.program);
+				this.gl.uniform1f(this.uniforms.time, performance.now() / 1000);
+				this.gl.uniform3f(this.uniforms.mouse, this.mouse.u, this.mouse.v, this.mouse.active);
+				this.gl.drawArrays(this.gl.TRIANGLE_FAN, 0, 4);
+
+				this.gl.useProgram(this.outprogram);
+				this.gl.bindTexture(this.gl.TEXTURE_2D, this.switch ? this.back : this.front);
+				this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+				this.gl.drawArrays(this.gl.TRIANGLE_FAN, 0, 4);
+
+			}
+			
+		}
+
+		generateObject(){
+			let w = 40
+			let h = 42
+			let data = `23b2o$23bo$17b2ob2obo$15bo2bobobo$15b2o4bo13bo$33b3o$32bo$32b2o2$12b2o
+$11bobo5b2ob2o7b2o$10bo7b2o3b2o6b2o$9bo9b2ob2o$9b2o9b3o$21bo$3b2o$4bo$
+2bo$2b2o2$2b2o7bobo2bobo11bo2bo$2bobo6bo2bo3bo15bo$3bo5b2o3bobobo11bo
+3bo$3o7b3obo16b4o$o6b2o5b2o$7b2o4b2o$7b2o3bo$7b2obobo$7b2obobo2$24b3o
+8b2o$10b2o12bobo8b2o$6b2o2b2o5b2o5bobo$5bobo8bobo$5bo10bo19b2o$4b2o9b
+2o19bo$37b3o$19b2o4bo13bo$19bo2bobobo$21b2ob2obo$27bo$27b2o!`
+			
+
+			let c = this.ctx.createImageData(w, h)
+
+			data = data.split(`$`)
+
+			let skip = 0;
+			for (let y = 0; y < data.length; y++){
+				let skipY = data[y].match(/\d+$/)
+				skipY = skipY ? skipY[0] - 1 : 0
+				data[y] = data[y].match(/(\d+)?(b|o)/g)
+				let x = 0
+				if (data[y] && data[y].length){
+					for (let i = 0; i < data[y].length; i++){
+
+						let v = data[y][i].match(/b/) ? 0 : 255
+						let d = data[y][i].match(/\d+/)
+						d = d ? +d[0] : 1
+
+						for (let p = x; p < x + d; p++){
+							let index = [y+skip] * w * 4 + p * 4
+							c.data[index] = v
+							c.data[index + 1] = v
+							c.data[index + 2] = 0
+							c.data[index + 3] = 255
+
+						}
+
+						x += d
+
+					}
+				}
+				skip += skipY
+			}
+			this.ctx.putImageData(c, Math.floor((this.canvas.width - w) / 2), Math.floor((this.canvas.height - h) / 2))
+			
+		}
+
+	}
+
+	let engine = new Engine(document.querySelector('.vessel'), document.querySelector('.vsh').textContent, document.querySelector('.fsh').textContent, document.querySelector('.ssh').textContent);
+	
+	
+</script>
+</body>
+</html>
