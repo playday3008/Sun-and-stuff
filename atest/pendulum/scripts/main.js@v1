@@ -1,0 +1,414 @@
+let core;
+window.onload = ()=>{
+
+	let a = new Range({ width: 500, value: 2, class: `inputA`, min: -Math.PI * 4, max: Math.PI * 4, scale: 8, label: `Angle`, labelWidth: 160, formula: v=>(Math.abs(v) === Math.PI ? (Math.sign(v) === 1 ? `` : `–`) + `π` : v === 0 ? `0` : v / Math.PI + `π`)})
+	let v = new Range({ width: 500, value: .05, class: `inputV`, min: -.5, max: .5, scale: 2, label: `Velocity`, labelWidth: 160})
+	let d = new Range({ width: 500, value: .003, class: `input`, min: .0001, max: .05, scale: 5, label: `Friction`, labelWidth: 160})
+	let l = new Range({ width: 500, value: 1, class: `input`, min: .5, max: 2, scale: 5, label: `Length`, labelWidth: 160})
+	let m = new Range({ width: 500, value: 1, class: `input`, min: 1, max: 19, scale: 4, label: `Mass`, labelWidth: 160})
+	let start = new Toggle({n1: `Start`, n2: `Stop`, class: `go`, class2: `going`})
+
+
+	core = new Core(document.querySelector('.vessel'), a, v, d,l,start)
+	document.body.insertBefore(a,document.querySelector('.go'));
+	document.body.insertBefore(v,document.querySelector('.go'));
+	document.body.insertBefore(d,document.querySelector('.go'));
+	document.body.insertBefore(l,document.querySelector('.go'));
+	document.body.insertBefore(m,document.querySelector('.go'));
+	document.body.appendChild(start);
+
+	a.data.onchange = v=>{
+		core.state.mode = 0
+		start.data.toggle(false)
+		core.updateSystem(v)
+	}
+	v.data.onchange = v=>{
+		core.state.mode = 0
+		start.data.toggle(false)
+		core.updateSystem(0, v)
+	}
+	d.data.onchange = v=>{
+		core.state.mode = 0
+		start.data.toggle(false)
+		core.updateSystem(0, 0, v)
+	}
+	l.data.onchange = v=>{
+		core.state.mode = 0
+		start.data.toggle(false)
+		core.updateSystem(0, 0, 0, v)
+	}
+	m.data.onchange = v=>{
+		core.state.m = v;
+	}
+	start.data.onchange = v=>{
+		core.toggle()
+	}
+}
+
+class Core {
+
+	constructor(canvas, a, v, d, l, s) {
+
+		this.canvas = canvas;
+		this.ratio = window.devicePixelRatio || 1;
+		this.canvas.width = this.w = this.canvas.clientWidth * this.ratio;
+		this.canvas.height = this.h = this.canvas.clientHeight * this.ratio;
+		this.ctx = this.canvas.getContext('2d');
+
+		this.vCanvas = document.createElement('canvas');
+		this.vCanvas.width = this.canvas.width;
+		this.vCanvas.height = this.canvas.height;
+		this.vctx = this.vCanvas.getContext('2d');
+
+		this.aCanvas = document.createElement('canvas');
+		this.aCanvas.width = this.canvas.width;
+		this.aCanvas.height = this.canvas.height;
+		this.actx = this.aCanvas.getContext('2d');
+
+		this.gCanvas = document.createElement('canvas');
+		this.gCanvas.width = Math.floor(this.canvas.width / 2.2);
+		this.gCanvas.height = this.canvas.height / 10;
+		this.gctx = this.gCanvas.getContext('2d');
+
+		this.time = {
+			tt: 0,
+			dt: 0,
+			lt: 0,
+			scale: .1
+		};
+
+		this.gravity = .002;
+		this.damping = .003;
+		this.box = 200 * this.ratio
+
+		this.controls = {
+			a: a,
+			v: v,
+			d: d,
+			l: l,
+			s: s
+		}
+
+		this.state = {
+			x: this.w - this.box * 0.6,
+			y: this.h - this.box * 0.6,
+			l: 1,
+			r: 6 * this.ratio,
+			a: 2,
+			v: .05,
+			pv: .05,
+			pa: 2,
+			pi: 0,
+			lx: false,
+			ly: false,
+			mode: false,
+			m: 1,
+			etotal: 0,
+			loss: 0
+		}
+
+		this.ctx.font = this.actx.font = this.ratio * 10 + `px Courier`;
+		this.actx.textBaseline = `middle`
+		this.canvas.addEventListener(`mousemove`, e=>{if (e.buttons) {this.handleMouse(e)}});
+		this.canvas.addEventListener(`click`, e=>{this.handleMouse(e)});
+
+		this.renderAxis();
+		this.updateSystem();
+		this.run();
+
+	}
+
+	handleMouse(e){
+		this.state.mode = false
+		this.controls.s.data.toggle(false)
+		this.updateSystem((e.clientX * this.ratio - this.w/2) / (this.w / Math.PI / 8), -(e.clientY * this.ratio - this.h/2) / this.h);
+		this.controls.a.data.update(this.state.a);
+		this.controls.v.data.update(this.state.v);
+	}
+
+	toggle(){
+		this.state.mode = !this.state.mode;
+		this.updateSystem();
+	}
+
+	updateSystem(x,y,d,l){
+		if (x) this.state.a = x;
+		if (y) this.state.v = y;
+		if (d) this.damping = d;
+		if (l) this.state.l = l;
+
+		this.state.etotal = Math.abs(Math.sin(this.state.a/2)) * this.gravity * this.state.l * 2 + (this.state.v)**2 /2
+		this.state.loss = 0
+
+		this.updatePlot();
+	}
+
+	run() {
+
+		this.frameID = requestAnimationFrame(this.run.bind(this));
+		this.frame();
+
+	}
+
+	frame(){
+
+		this.ctx.fillStyle = '#112';
+		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+		
+		this.update();
+		this.drawPlot();
+		this.drawPendulum();
+		this.drawProgress();
+
+	}
+
+	drawProgress(){
+
+		this.gctx.fillStyle = `#112`
+		this.gctx.drawImage(this.gCanvas,-1,0)
+		this.gctx.fillRect(this.gCanvas.width - 1, 0, 1, this.gCanvas.height)
+
+		this.gctx.fillStyle = `#677799`;
+		this.gctx.fillRect(this.gCanvas.width - 1, this.gCanvas.height / 2, 1, 1)
+
+		this.gctx.strokeStyle = `#ff8539`
+		this.gctx.lineWidth = this.ratio
+		this.gctx.beginPath()
+		this.gctx.moveTo(this.gCanvas.width - 1, this.gCanvas.height / 2 + Math.sin(this.state.pa / 2) * this.gCanvas.height/2)
+		this.gctx.lineTo(this.gCanvas.width, this.gCanvas.height / 2 + Math.sin(this.state.a / 2) * this.gCanvas.height/2)
+		this.gctx.stroke()
+
+		this.gctx.strokeStyle = `#48FF7B`
+		this.gctx.lineWidth = this.ratio
+		this.gctx.beginPath()
+		this.gctx.moveTo(this.gCanvas.width - 1, this.gCanvas.height / 2 + this.state.pv * this.gCanvas.height * 4)
+		this.gctx.lineTo(this.gCanvas.width, this.gCanvas.height / 2 + this.state.v * this.gCanvas.height * 4)
+		this.gctx.stroke()
+
+		this.state.pa = this.state.a
+		this.state.pv = this.state.v
+
+		this.ctx.drawImage(this.gCanvas, 0, this.h - this.gCanvas.height - this.box * .1)
+	}
+
+	update(){
+		let now = window.performance.now();
+		this.time.dt = (now - this.time.lt);
+		this.time.tt += this.time.dt;
+		this.time.lt = now;
+
+		if (this.state.mode){
+
+			this.state.loss += (this.damping * this.state.v)**2
+			this.state.v += this.gravity * -Math.sin(this.state.a);
+			this.state.v *= (1 - this.damping);
+			this.state.a += this.state.v / this.state.l;
+			if (this.state.a > Math.PI * 4){
+				this.state.a -= Math.PI * 8;
+			} else if (this.state.a < -Math.PI * 4){
+				this.state.a += Math.PI * 8;
+			}
+
+			this.controls.a.data.update(this.state.a);
+			this.controls.v.data.update(this.state.v);
+
+		}
+
+	}
+
+	drawEnergy(){
+
+		let w = this.ratio * 10
+		let h = this.ratio * 100
+
+		let ep = Math.abs(Math.sin(this.state.a/2)) * this.gravity * this.state.l * 2
+		let ek = (this.state.v)**2 /2
+		let loss = this.state.loss * 250
+
+		ep *= h / this.state.etotal
+		ek *= h / this.state.etotal
+		loss *= h / this.state.etotal
+
+		this.ctx.fillStyle = `#ff8539`
+		this.ctx.fillRect(0,0,w, ep)
+
+		this.ctx.fillStyle = `#48FF7B`
+		this.ctx.fillRect(w,0,w, ek)
+
+		this.ctx.fillStyle = `#f00`
+		this.ctx.fillRect(w*2,0,w, loss)
+
+	}
+
+	updatePlot(){
+
+		if (!this.mode){
+
+			this.vctx.clearRect(0,0,this.w,this.h);
+			this.vctx.lineWidth = 2 * this.ratio;
+
+			let v = this.state.v;
+			let a = this.state.a;
+
+			for (let i = 0; i < 1024; i++){
+
+				let x = this.w / 2 + a * (this.w / Math.PI / 8);
+				let y = this.h / 2 - v * (this.h);
+				let skip = Math.abs(this.ly - y) > this.h/2 || Math.abs(this.lx - x) > this.w/2;
+
+				if (this.lx && this.ly && !skip){
+					this.vctx.strokeStyle = `rgba(255,255,255,${1-i/1024})`;
+					this.vctx.beginPath();
+					this.vctx.moveTo(this.lx, this.ly);
+					this.vctx.lineTo(x, y);
+					this.vctx.stroke();
+
+				}
+
+				this.lx = x;
+				this.ly = y;
+
+				v += this.gravity * -Math.sin(a);
+				v *= 1 - this.damping;
+				a += v / this.state.l;
+				if (a > Math.PI * 4){
+					a -= Math.PI * 8;
+				} else if (a < -Math.PI * 4){
+					a += Math.PI * 8;
+				}
+
+			}
+
+			this.lx = this.ly = false
+
+		}
+	}
+
+	drawPlot(){
+		this.ctx.drawImage(this.vCanvas,0,0);
+		this.ctx.drawImage(this.aCanvas,0,0);
+		this.drawAxis();
+
+	}
+
+	drawAxis(){
+
+		let v = this.h / 2 - this.state.v * this.h;
+		let a = this.w / 2 + this.state.a * this.w / Math.PI / 8;
+
+		this.ctx.strokeStyle = `#48FF7BAA`;
+		this.ctx.fillStyle = `#FFF`;
+
+		this.ctx.beginPath();
+		
+		this.ctx.moveTo(this.w/2, v);
+		this.ctx.lineTo(a, v);
+		this.ctx.stroke();
+
+		this.ctx.strokeStyle = `#ff8539CC`;
+
+		this.ctx.beginPath();
+		this.ctx.moveTo(a, this.h/2);
+		this.ctx.lineTo(a, v);
+		this.ctx.stroke();
+
+		this.ctx.fillRect(a-this.ratio*2,v-this.ratio*2,this.ratio*4,this.ratio*4);
+
+	}
+
+	renderAxis(){
+
+		this.margin = this.ratio * 10
+		let h = this.h/2
+		let w = this.w/2
+
+		this.actx.fillStyle = `#677799`;
+		this.actx.fillText(`t`, this.margin + this.gCanvas.width, this.h - this.gCanvas.height / 2 - this.margin * 2);
+		// this.actx.fillStyle = `#48FF7B`;
+		this.actx.fillText(`Angle mod π and velocity over time`, this.margin, this.h - this.gCanvas.height - this.margin * 4);
+
+		this.actx.strokeStyle = `#48FF7BAA`;
+		this.actx.fillStyle = `#48FF7BCC`;
+		this.actx.textAlign = `left`
+
+		for (let i = this.h / 40; i < this.h; i += this.h / 40){
+			this.actx.beginPath();
+			if (i%(this.h / 8)){
+				this.actx.moveTo(w - this.margin / 6, i);
+				this.actx.lineTo(w + this.margin / 6, i);
+			} else {
+				this.actx.moveTo(w - this.margin / 2, i);
+				this.actx.lineTo(w + this.margin / 2, i);
+				this.actx.fillText(-i/(this.h)+.5, w + this.margin * 1.5, i);
+			}
+			
+			this.actx.stroke();
+		}
+
+		this.actx.textAlign = `center`
+		this.actx.fillText(`Velocity`, w, this.margin);
+
+		this.actx.strokeStyle = `#ff8539CC`;
+		this.actx.fillStyle = `#ff8539CC`;
+
+		for (let i = this.w / 8; i < this.w; i += this.w / 40){
+			this.actx.beginPath();
+			if (i%(this.w / 8)){
+				this.actx.moveTo(i, h - this.margin / 6);
+				this.actx.lineTo(i, h + this.margin / 6);
+			} else {
+				this.actx.moveTo(i, h - this.margin / 2);
+				this.actx.lineTo(i, h + this.margin / 2);
+				let pi = 8 * (i/(this.w)-.5);
+				this.actx.fillText(pi === 1 ? `π` : pi === -1 ? `-π` : pi + `π`, i,  h + this.margin * 1);
+			}
+			
+			this.actx.stroke();
+		}
+
+		this.actx.textAlign = `left`
+		this.actx.fillText(`Angle`, this.margin, h);	
+	}
+
+	drawPendulum(){
+
+		this.ctx.fillStyle = `#272739`
+		this.ctx.fillRect(this.w - this.box * 1.1, this.h - this.box * 1.1, this.box, this.box)
+
+		let l = this.state.l * this.box / 5;
+
+		this.ctx.save();
+		this.ctx.translate(this.state.x,this.state.y);
+		this.ctx.rotate(-this.state.a);
+
+		this.ctx.strokeStyle = '#fff';
+		this.ctx.lineWidth = 2 * this.ratio;
+		this.ctx.beginPath();
+		this.ctx.moveTo(0,0);
+		this.ctx.lineTo(0,l);
+		this.ctx.stroke();
+
+		this.ctx.fillStyle = '#fff';
+		this.ctx.beginPath();
+		this.ctx.arc(0,l, this.state.r * (this.state.m ** .25), 0, Math.PI * 2);
+		this.ctx.closePath();
+		this.ctx.fill();
+
+		this.ctx.strokeStyle = this.ctx.fillStyle = `#48FF7B`
+		this.ctx.beginPath();
+		this.ctx.moveTo(0,l);
+		this.ctx.translate(this.state.v * this.box, l);
+		this.ctx.lineTo(0,0);
+		this.ctx.stroke();
+
+		this.ctx.beginPath();
+		this.ctx.moveTo(Math.sign(this.state.v) * 10 * this.ratio, 0);
+		this.ctx.lineTo(0, 4 * this.ratio);
+		this.ctx.lineTo(0, -4 * this.ratio);
+		this.ctx.fill();
+
+		this.ctx.restore();
+
+	}
+
+}

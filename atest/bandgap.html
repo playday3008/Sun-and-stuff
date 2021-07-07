@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+
+<html>
+
+	<head>
+
+		<meta charset="utf-8" />
+		<title>
+			Insulator transition
+		</title>
+		<style type="text/css">
+			body, html {
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				padding: 0;
+				font: 14px 'Lato', sans-serif;
+			}
+			canvas {
+				width: 640px;
+				height: 480px;
+			}
+			.inputG {
+				margin: 32px 0 8px 24px;
+			}
+			.inputG .ss_rangeRail {
+				/*background-image: linear-gradient(to right, rgb(253,15,64) 40%, #08f 50%, rgb(253,158,108) 60%) !important;*/
+				background-image: linear-gradient(to right, #ea225a 0%, #ff2867 30%,#c2b2ff 45%, #0ab0ff 50%, #ffb7d0 55%, #ffc59a 70%, #e8997e 100%) !important;
+			}
+			.inputG .ss_rangeFill {
+				opacity: 0
+			}
+			.toggle {
+				background: #000;
+				color: #fff;
+				margin: 24px 0 0 24px;
+			}
+			.disabled {
+				opacity: .5;
+				pointer-events: none;
+				transition: opacity .3s;
+			}
+			.controls {
+				max-width: 640px;
+			}
+		</style>
+		<!-- build:js scripts/main.js -->
+		<script type="text/javascript" src="bandgap/scripts/main.js"></script>
+		<!-- endbuild -->
+		<!-- build:js scripts/three.js -->
+		<script type="text/javascript" src="bandgap/scripts/three.js"></script>
+		<!-- endbuild -->
+		<!-- build:js scripts/controls.js -->
+		<script type="text/javascript" src="bandgap/scripts/controls.js"></script>
+		<!-- endbuild -->
+	</head>
+	<body>
+	</body>
+</html>

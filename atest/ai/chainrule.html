@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+
+<html>
+
+	<head>
+
+		<meta charset="utf-8" />
+		<title>
+			Chain rule
+		</title>
+		<style type="text/css">
+			body, html {
+				margin: 0;
+				padding: 0;
+				font: 12px/20px 'Lato', sans-serif;
+			}
+			.double {
+				display: flex;
+			}
+			.canvas {
+				width: 800px;
+				height: 400px;
+				background: #FFF;
+				margin: 0 0 12px 0;
+			}
+      .input {
+        margin: 0 0 18px 0;
+      }
+			.button, .go {
+          background: #000;
+          color: #fff;
+          margin: 18px 12px 0px 0;
+          user-select: none;
+      }
+      .label {
+          font: 16px Lato;
+          display: inline-block;
+          width: 200px;
+      }
+      .padded {
+      	margin: 0 0 20px 0;
+      }
+      .margined {
+          margin: 0 12px 0 180px;
+      }
+
+      .source {
+            position: absolute;
+            left: 0;
+            top: 0;
+            transition: opacity .5s ease;
+            opacity: 0;
+            transform: scale(0, -1);
+      }
+      
+      .dual {
+        display: flex;
+        width: 800px;
+      }
+      .left {
+        width: 504px;
+      }
+                  
+			
+		</style>
+		<!-- build:js scripts/main.js -->
+    <script type="text/javascript" src="chainrule/scripts/main.js"></script>
+    <!-- endbuild -->
+    <!-- build:js scripts/light.js -->
+    <script type="text/javascript" src="chainrule/scripts/light.js"></script>
+    <!-- endbuild -->
+    <!-- build:js scripts/controls.js -->
+    <script type="text/javascript" src="chainrule/scripts/controls.js"></script>
+    <!-- endbuild -->
+		
+	</head>
+	<body>
+          <canvas class="canvas"></canvas>
+	</body>
+</html>

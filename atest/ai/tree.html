@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+
+<html>
+
+	<head>
+
+		<meta charset="utf-8" />
+		<title>
+			Tree
+		</title>
+		<style type="text/css">
+			body, html {
+				margin: 0;
+				padding: 0;
+				font: 12px/20px 'Lato', sans-serif;
+			}
+			.double {
+				display: flex;
+			}
+			.canvas {
+				width: 500px;
+				height: 500px;
+				background: #112;
+				margin: 0 0 12px 0;
+			}
+			.button, .go {
+                background: #000;
+                color: #fff;
+                margin: 18px 12px 0px 0;
+                user-select: none;
+            }
+            .go.one {
+            	background: #709B72
+            }
+            .go.two {
+            	background: #FF8D53
+            }
+            .go.three {
+            	background: #474673
+            }
+            .go.active {
+            	/*border: 2px solid #000;*/
+            	transform: scale(1.1);
+            }
+            .input, .inputA, .inputV {
+                margin: 0 0 18px 0;
+            }
+            .input.active .ss_rangeFill{
+            	background: #5A0DFF !important
+            }
+            .label {
+                font: 16px Lato;
+                display: inline-block;
+                width: 180px;
+            }
+            .padded {
+            	margin: 0 0 20px 0;
+            }
+            .margined {
+                margin: 0 12px 0 180px;
+            }
+            .tree {
+            	position: absolute;
+            	left: 540px;
+				width: 400px;
+				height: 860px;
+				box-shadow: inset 0 0 10px 10px #fff;
+				overflow: hidden;
+				margin: 0 0 0 0;
+				text-align: center;
+				font-size: 10px;
+			}
+			.tree h2 {
+				font-size: 14px;
+				font-weight: 400;
+				margin: 16px 0 0 0;
+			}
+            .tree span {
+            	background: #EED;
+            	padding: 2px 4px;
+            	border-radius: 2px;
+            	margin: 0 1px;
+            }
+            .tree span.blank {
+            	background: #FFF;
+            }
+            .tree span.green{
+            	background: #709B72;
+            	color: #FFF;
+            }
+            .tree span.red{
+            	background: #FF8D53;
+            	color: #FFF;
+            }
+            .tree span.blue{
+            	background: #474673;
+            	color: #FFF;
+            }
+            .tree ul {
+            	list-style-type: none;
+            	position: relative;
+            	display: flex;
+            	justify-content: center;
+            	margin: 0;
+            	padding: 20px 0 0 0;
+            }
+            .tree li {
+            	position: relative;
+            	margin: 0 0 0 0;
+            }
+            .tree li:before {
+            	content: '';
+            	position: absolute;
+            	top: -10px;
+            	left: 50%;
+            	border-right: 1px solid #CCB;
+            	width: 0;
+            	height: 10px;
+            }
+            .tree li:after {
+            	content: '';
+            	position: absolute;
+            	top: -10px;
+            	left: 0;
+            	border-top: 1px solid #CCB;
+            	width: 50%;
+            	height: 0;
+            }
+            .tree li:first-child:after {
+            	left: 50%;
+            	border-top: 1px solid #CCB;
+            	width: 50%;
+            	height: 0;
+            }
+            .tree li:only-child:after {
+            	border: none;
+            }
+            .tree ul ul:before{
+            	content: '';
+            	position: absolute;
+            	top: 0;
+            	left: 50%;
+            	border-right: 1px solid #CCB;
+            	width: 0;
+            	height: 10px;
+            }
+
+            .xlabel{
+            	color: #666;
+            	font-size: 10px;
+            	position: absolute;
+            	top: 496px;
+            }
+            .xlabel.xcenter{
+            	left: 250px;
+            	transform: translate(-50%, 0)
+            }
+            .xlabel.xedge{
+            	left: 500px;
+            	transform: translate(-100%, 0)
+            }
+            .ylabel{
+            	color: #666;
+            	font-size: 10px;
+            	position: absolute;
+            	left: 502px;
+            }
+            .ylabel.ycenter{
+            	top: 250px;
+            	/*transform: translate(-50%, 0)*/
+            }
+            .ylabel.yedge{
+            	top: 480px;
+            	/*transform: translate(-100%, 0)*/
+            }
+			
+		</style>
+		<script type="text/javascript" src="tree/scripts/main.js"></script>
+		<script type="text/javascript" src="tree/scripts/controls.js"></script>
+		<script type="text/javascript" src="tree/scripts/decision-tree-min.js"></script>
+		
+	</head>
+	<body>
+		<div class="double">
+			<canvas class="canvas" oncontextmenu="return false"></canvas>
+			<div class="tree"></div><br>
+			<div class="xlabel">0%</div>
+			<div class="xlabel xcenter">x</div>
+			<div class="xlabel xedge">100%</div>
+			<div class="ylabel">0%</div>
+			<div class="ylabel ycenter">y</div>
+			<div class="ylabel yedge">100%</div>
+		</div>
+	</body>
+</html>

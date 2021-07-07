@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+
+<html>
+
+	<head>
+
+		<meta charset="utf-8" />
+		<title>
+			AI Test TF
+		</title>
+		<style type="text/css">
+			body, html {
+				margin: 0;
+				padding: 0;
+				font: 16px/20px 'Lato', sans-serif;
+			}
+			.canvas {
+				width: 280px;
+				height: 280px;
+				background: #ffe;
+			}
+			.source {
+				width: 280px;
+				height: 280px;
+				background: #ffe;
+				-ms-interpolation-mode: nearest-neighbor;
+				image-rendering: -moz-crisp-edges;
+            	image-rendering: pixelated;
+			}
+			.comment {
+				width: 400px;
+				margin: 1em 0;
+			}
+			
+		</style>
+		
+		<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+		
+	</head>
+	<body>
+		<canvas class="source"></canvas>
+		<canvas class="canvas"></canvas><br/>
+		<div class="comment">
+			Left square is your 10x10 input and right 28x28 square is GAN output. Use you mouse to draw some noise in the input. Use shift key to draw with negative values.
+		</div>
+		<button onclick="javascript: makeNoise()">Make some noise</button>
+	</body>
+	<script type="text/javascript">
+
+		let makeNoise
+		mnistGan().then(r=>{makeNoise = r})
+
+		async function mnistGan(){
+
+			const scanvas = document.querySelector(`.source`)
+			scanvas.width = 10
+			scanvas.height = 10
+			const sctx = scanvas.getContext(`2d`)
+
+			const canvas = document.querySelector(`.canvas`)
+			canvas.width = 28
+			canvas.height = 28
+			const ctx = canvas.getContext(`2d`)
+			const model = await tf.loadGraphModel(`./tensorGen/model.json`)
+			let ready = true
+			let flip = true
+
+			const egg = new Image()
+			egg.src = `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAHfSURBVHgB7ZXbbSpBDIa9R+cdqAA6ABoAOgDRAJQAFMDtnUsFXArgUgG3BoAKoAOggUzms+RVViIPIUqkSGtpNbbHM7Zn/n82EBEnvyfun/yyxAnjhH8o4Xa7ldlspmMul5Ofkv+mBEEg9Xpdut2uJJNJ9ZVKJdXX67WOlUpF/afTSa7Xq9ro9/tdYxH8FoNfPuvQueiDQ3Lr1IrAZ4ktwWQy0ZHNa7WajsQVi0XJZDLPE7LYKjPBx6JyuaybkGi322nlSDab1YKsC/yXy0XO57PaqVRKlstleFqRhKvVShdzf1TZ6XRkPB6HR81mo9FIjsdjuPDxeEg6nX7aBWKFPjtW5xNxnuHnOwl1X2Fk7pvfWyDx3+Ibwv1Pp1PFxnA4DP3OA0bvygNAdXwe+vqhe8S6j3Eegc5DPxJrNnugMxKLzyd2m80G+007hFfAGMShg1LQhd1oNJRXVMscaAbuxjdskA2trCPmjJ8gvN1uy+FwUH/40gwGA0263++VYwZ3495isZB8Pq82c8AegWe32039JCeWl4kYbPYjptlsRu+w1WpJr9dTvd/v68uTSCSUyHCyWq3KfD7XeUY2sXkTksFPuiwUCloEQtxHeYlTL/Iz5mGc8OsCD18FTSAvyDucAECDICPfZQAAAABJRU5ErkJggg==`
+
+			let brushdown = false
+			let shiftdown = false
+			document.body.addEventListener(`keydown`, e=>{
+				if (e.keyCode === 16){shiftdown = true}
+			})
+			document.body.addEventListener(`keyup`, e=>{
+				if (e.keyCode === 16){shiftdown = false}
+			})
+			scanvas.addEventListener(`click`,e=>{
+				flip = true
+				updateCellAtCoords(e.layerX, e.layerY, shiftdown)
+			})
+			scanvas.addEventListener(`mousemove`,e=>{
+				if (brushdown){
+					updateCellAtCoords(e.layerX, e.layerY, shiftdown)
+				}
+			})
+			scanvas.addEventListener(`mousedown`,e=>{
+				brushdown = true
+			})
+			scanvas.addEventListener(`mouseup`,e=>{
+				brushdown = false
+			})
+
+			let input, buffer, inputData
+			makeNoise()
+			
+
+			async function makeNoise(){
+				input = tf.randomNormal([1,100])
+				buffer = await input.buffer()
+				inputData = buffer.values
+				drawSource(inputData)
+				update(input)
+			}
+
+			function detectEgg(){
+				let good = true
+				for (let i = 0; i < inputData.length; i++){
+					if (inputData[i] !== 2) {
+						good = false
+						break;
+					}
+				}
+				return good
+			}
+
+			function updateCellAtCoords(x,y,shift){
+				if (ready && flip){
+
+					let bingo = detectEgg()
+
+					flip = false
+					let cellid = Math.floor(x / 28) + Math.floor(y / 28) * 10
+					inputData[cellid] = shift ? Math.max(-2, inputData[cellid] - .8) : Math.min(2, inputData[cellid] + .8)
+					drawSource(inputData)
+					if (bingo){
+						ctx.drawImage(egg,0,0)
+					} else {
+						pro = update(tf.tensor(inputData, [1, 100]))
+						pro.then(_=>{ready = true})
+					}
+				} else {
+					flip = true
+				}
+			}
+
+			async function update(input){
+				let tns = await model.predict(input).buffer()
+				ready = true
+				drawTensor(tns.values)
+			}
+
+			function drawSource(data){
+
+				const imgdata = sctx.createImageData(10,10)
+				for (let i = 0; i < data.length; i++){
+
+					let pi = i * 4
+					let v = data[i] > 2 ? 255 : data[i] < -2 ? 0 : Math.floor((data[i] * .25 + .5) * 255)
+
+					imgdata.data[pi] = v
+					imgdata.data[pi+1] = v
+					imgdata.data[pi+2] = v
+					imgdata.data[pi+3] = 255
+
+				}
+
+				sctx.putImageData(imgdata,0,0)
+
+			}
+
+			function drawTensor(data){
+
+				const imgdata = ctx.createImageData(28,28)
+				for (let i = 0; i < data.length; i++){
+
+					let pi = i * 4
+					let v = data[i] > 1 ? 255 : data[i] < -1 ? 0 : Math.floor((data[i] * .5 + .5) * 255)
+
+					imgdata.data[pi] = v
+					imgdata.data[pi+1] = v
+					imgdata.data[pi+2] = v
+					imgdata.data[pi+3] = 255
+
+				}
+
+				ctx.putImageData(imgdata,0,0)
+
+			}
+
+			return makeNoise
+
+		}
+
+	</script>
+</html>

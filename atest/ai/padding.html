@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+
+<html>
+
+	<head>
+
+		<meta charset="utf-8" />
+		<title>
+			Padding
+		</title>
+		<style type="text/css">
+			body, html {
+				margin: 0;
+				padding: 0;
+				font: 12px/20px 'Lato', sans-serif;
+			}
+			.double {
+				display: flex;
+			}
+			.canvas, .original {
+				width: 800px;
+				height: 400px;
+				background: #FFF;
+				margin: 0 0 12px 0;
+        -ms-interpolation-mode: nearest-neighbor;
+        image-rendering: -moz-crisp-edges;
+        image-rendering: pixelated;
+			}
+      .input {
+        margin: 0 0 18px 0;
+      }
+			.button, .go {
+          background: #000;
+          color: #fff;
+          margin: 18px 12px 0px 0;
+          user-select: none;
+      }
+      .label {
+          font: 16px Lato;
+          display: inline-block;
+          width: 200px;
+      }
+      .padded {
+      	margin: 0 0 20px 0;
+      }
+      .margined {
+          margin: 0 12px 0 180px;
+      }
+
+      .source {
+            position: absolute;
+            left: 0;
+            top: 0;
+            transition: opacity .5s ease;
+            opacity: 0;
+            transform: scale(0, -1);
+      }
+      
+      .dual {
+        display: flex;
+        width: 800px;
+      }
+      .left {
+        width: 504px;
+      }
+
+      .kernelContainer{
+            display: flex;
+            flex-wrap: wrap;
+            width: 192px;
+            height: 192px;
+            background: #F00;
+      }
+      .kernelContainer .cell{
+            position: relative;
+            width: 64px;
+            height: 64px;
+            background: #00F;
+      }
+      .kernelContainer .cell .value{
+            font-size: 18px;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+      }
+      .kernelContainer .cell:hover{
+            cursor: ew-resize;
+      }
+
+      .active {
+        background: #5A0DFF
+      }
+                  
+			
+		</style>
+		<!-- build:js scripts/main.js -->
+    <script type="text/javascript" src="padding/scripts/main.js"></script>
+    <!-- endbuild -->
+		
+	</head>
+	<body>
+          <canvas class="canvas"></canvas>
+	</body>
+</html>

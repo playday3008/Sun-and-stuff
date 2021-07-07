@@ -226,7 +226,7 @@ class Dot {
 
 		this.circle.addEventListener('click', function(){
 			this.circle.classList.add('dying');
-			this.circle.removeEventListener('mouseover');
+			this.circle.removeEventListener('mouseover', window.onload);
 		}.bind(this))
 
 		this.circle.addEventListener('animationend', function(){
